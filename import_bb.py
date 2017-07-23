@@ -21,7 +21,7 @@ for top, dirs, files in os.walk(bb_dir):
       mtime = os.stat(os.path.join(top, name)).st_mtime
       pybb_post_date = datetime.utcfromtimestamp(mtime)
       # Get each filename without extension
-      pybb_post_filename = os.path.splitext(name)[0]
+      pybb_post_filename = os.path.splitext(name)[0] + ".html"
       # Open each file read-only
       with open(os.path.join(top, name), 'r', encoding="utf-8") as f:
         pybb_post_content = ""
