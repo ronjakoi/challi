@@ -10,6 +10,7 @@ pybb = 'pybb.db'
 # Open database connection
 conn = sqlite3.connect(pybb)
 cur = conn.cursor()
+cur.execute("PRAGMA foreign_keys=1")
 
 # Walk Bashblog directory
 for top, dirs, files in os.walk(bb_dir):
