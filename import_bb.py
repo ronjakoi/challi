@@ -4,6 +4,7 @@ import sqlite3
 import os
 from datetime import datetime
 
+outdir = 'blog'
 bb_dir = 'bb'
 pybb = 'pybb.db'
 
@@ -12,6 +13,7 @@ conn = sqlite3.connect(pybb)
 cur = conn.cursor()
 cur.execute("PRAGMA foreign_keys=1")
 
+htaccess = open(os.path.join(outdir, ".htaccess"), 'a')
 # Walk Bashblog directory
 for top, dirs, files in os.walk(bb_dir):
   for name in files:
@@ -41,6 +43,10 @@ for top, dirs, files in os.walk(bb_dir):
                   VALUES (?, ?, ?, ?)""",
                   (pybb_post_title, pybb_post_content, pybb_post_date, pybb_post_filename)
                   )
+      post_path_new = '{}/{:02d}/{}'.format(pybb_post_date.year,
+                                    pybb_post_date.month,
+                                    pybb_post_filename)
+      htaccess.write("Redirect /{} /{}\n".format(pybb_post_filename, post_path_new))
       # Take note of what autoincremented id we got
       post_id = cur.lastrowid
 
@@ -59,3 +65,4 @@ for top, dirs, files in os.walk(bb_dir):
       # Commit the transaction (all posts, all tags)
       conn.commit()
 conn.close()
+htaccess.close()
