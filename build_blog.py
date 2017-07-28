@@ -26,6 +26,10 @@ footer = """
 </body></html>"""
 
 dateformat = "%-d. %Bta %Y"
+
+def geturi(filename, pd):
+    return pd[0:4] + "/" + pd[5:7] + "/" + filename + ".html"
+
 def pubdate2str(pubdate, formatstr):
     pd = datetime.strptime(pubdate, "%Y-%m-%d %H:%M:%S")
     return pd.strftime(formatstr)
@@ -39,8 +43,7 @@ def makeindex():
     makedirs(outdir, exist_ok=True)
     idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
     
-    idxf.write(header)
-    idxf.write("<ul>\n")
+    idxf.write(header + "<ul>\n")
     for row in cur.execute("SELECT title, publish_date, filename "
                            "FROM posts ORDER BY publish_date DESC LIMIT ?",
                            (index_len,)):
@@ -50,9 +53,7 @@ def makeindex():
         idxf.write(("    <li><strong>{publish_date}</strong> "
                     "<a href=\"{outfile}\">{title}</a></li>\n")
                     .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
-    idxf.write("</ul>\n")
-    idxf.write(footer)
-    
+    idxf.write("</ul>\n" + footer)
     idxf.seek(0)
     print(idxf.read())
     idxf.close()
@@ -61,21 +62,45 @@ def makeindex():
 def writeposts():
     for row in cur.execute("SELECT title, publish_date, filename, content "
                        "FROM posts"):
-    pdstring = pubdate2str(row["publish_date"], dateformat)
-    datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
-    makedirs(path.join(outdir, datedir), mode=0o750, exist_ok=True)
-    outfile = path.join(outdir, datedir, row["filename"]) + ".html"
-    # Write each post file
-    with open(outfile, 'w', encoding="utf-8") as f:
-        f.write(header)
-        f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
-        f.write(markdown(row["content"]))
-        f.write(footer)
+        pdstring = pubdate2str(row["publish_date"], dateformat)
+        datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
+        makedirs(path.join(outdir, datedir), mode=0o750, exist_ok=True)
+        outfile = path.join(outdir, datedir, row["filename"]) + ".html"
+        # Write each post file
+        with open(outfile, 'w', encoding="utf-8") as f:
+            f.write(header)
+            f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
+            f.write(markdown(row["content"]))
+            f.write(footer)
 
+# Make full index
+def makefullidx():
+    makedirs(outdir, exist_ok=True)
+    f = open(outdir + "/all_posts.html", 'w', encoding="utf-8")
+    f.write(header)
+    prevmonth = None
+    for row in cur.execute("SELECT title, publish_date, filename "
+                           "FROM posts ORDER BY publish_date DESC"):
+        pd = datetime.strptime(row["publish_date"], "%Y-%m-%d %H:%M:%S")
+        thismonth = (pd.year, pd.month)
+        # if prevmonth is None: f.write("<ul>\n");
+        if thismonth != prevmonth:
+            if prevmonth is not None: f.write("</ul>\n")
+            f.write("<h2>" + pubdate2str(row["publish_date"], "%B %Y") + "</h2>\n<ul>")
+        f.write("<li><a href=\"%s\">%s</a> &mdash; %s</li>" %
+                (geturi(row["filename"], row["publish_date"]),
+                 row["title"], pubdate2str(row["publish_date"], dateformat)
+                 )
+                )
+        prevmonth = thismonth
+    f.write("</ul>")
+    f.write(footer)
+    f.close()
 
 # Invoke functions from here
 
 writeposts()
 makeindex()
+makefullidx()
 
 conn.close()
