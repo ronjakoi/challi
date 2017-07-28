@@ -10,7 +10,7 @@ CREATE TABLE `tags_ref` (
 -- One row for each tag
 CREATE TABLE `tags` (
 	`tag_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-	`text`	TEXT NOT NULL
+	`text`	TEXT NOT NULL UNIQUE
 );
 -- Posts
 CREATE TABLE "posts" (
@@ -19,7 +19,7 @@ CREATE TABLE "posts" (
 	`content`	TEXT,
 	-- ISO-8601 timestamp string, UTC
 	`publish_date`	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`hidden`	INTEGER NOT NULL,
+	`hidden`	INTEGER NOT NULL DEFAULT 1,
 	`filename`	TEXT NOT NULL
 );
 -- Authors
