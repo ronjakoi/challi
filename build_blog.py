@@ -35,31 +35,31 @@ conn.row_factory = sqlite3.Row
 cur = conn.cursor()
 
 # Make blog index
-
-makedirs(outdir, exist_ok=True)
-idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
-
-idxf.write(header)
-idxf.write("<ul>\n")
-for row in cur.execute("SELECT title, publish_date, filename "
-                       "FROM posts ORDER BY publish_date DESC LIMIT ?",
-                       (index_len,)):
-    pdstring = pubdate2str(row["publish_date"], dateformat)
-    datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
-    outfile = path.join(datedir, row["filename"]) + ".html"
-    idxf.write(("    <li><strong>{publish_date}</strong> "
-                "<a href=\"{outfile}\">{title}</a></li>\n")
-                .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
-idxf.write("</ul>\n")
-idxf.write(footer)
-
-idxf.seek(0)
-print(idxf.read())
-idxf.close()
+def makeindex():
+    makedirs(outdir, exist_ok=True)
+    idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
+    
+    idxf.write(header)
+    idxf.write("<ul>\n")
+    for row in cur.execute("SELECT title, publish_date, filename "
+                           "FROM posts ORDER BY publish_date DESC LIMIT ?",
+                           (index_len,)):
+        pdstring = pubdate2str(row["publish_date"], dateformat)
+        datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
+        outfile = path.join(datedir, row["filename"]) + ".html"
+        idxf.write(("    <li><strong>{publish_date}</strong> "
+                    "<a href=\"{outfile}\">{title}</a></li>\n")
+                    .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
+    idxf.write("</ul>\n")
+    idxf.write(footer)
+    
+    idxf.seek(0)
+    print(idxf.read())
+    idxf.close()
 
 # Write posts to files
-
-for row in cur.execute("SELECT title, publish_date, filename, content "
+def writeposts():
+    for row in cur.execute("SELECT title, publish_date, filename, content "
                        "FROM posts"):
     pdstring = pubdate2str(row["publish_date"], dateformat)
     datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
@@ -73,6 +73,9 @@ for row in cur.execute("SELECT title, publish_date, filename, content "
         f.write(footer)
 
 
+# Invoke functions from here
 
+writeposts()
+makeindex()
 
 conn.close()
