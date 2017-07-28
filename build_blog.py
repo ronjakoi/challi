@@ -9,6 +9,7 @@ from datetime import datetime
 pybb = "pybb.db"
 outdir = "blog"
 index_len = 10
+debug = True
 
 locale.setlocale(locale.LC_ALL, 'fi_FI.utf8')
 
@@ -53,9 +54,9 @@ def makeindex():
         idxf.write(("    <li><strong>{publish_date}</strong> "
                     "<a href=\"{outfile}\">{title}</a></li>\n")
                     .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
+        if debug: print(".", end="")
     idxf.write("</ul>\n" + footer)
-    idxf.seek(0)
-    print(idxf.read())
+    if debug: print("")
     idxf.close()
 
 # Write posts to files
@@ -72,6 +73,8 @@ def writeposts():
             f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
             f.write(markdown(row["content"]))
             f.write(footer)
+        if debug: print(".", end="")
+    if debug: print("")
 
 # Make full index
 def makefullidx():
@@ -93,14 +96,19 @@ def makefullidx():
                  )
                 )
         prevmonth = thismonth
+        if debug: print(".", end="")
     f.write("</ul>")
     f.write(footer)
     f.close()
+    if debug: print("")
 
 # Invoke functions from here
 
+if debug: print("Writing posts ", end = "")
 writeposts()
+if debug: print("Creating index.html ", end = "")
 makeindex()
+if debug: print("Creating all_posts.html ", end = "")
 makefullidx()
-
+if debug: print("Done.")
 conn.close()
