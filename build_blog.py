@@ -38,6 +38,7 @@ def pubdate2str(pubdate, formatstr):
 conn = sqlite3.connect(pybb)
 conn.row_factory = sqlite3.Row
 cur = conn.cursor()
+cur.execute("PRAGMA foreign_keys=1")
 
 # Make blog index
 def makeindex():
