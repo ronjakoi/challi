@@ -102,6 +102,47 @@ def makefullidx():
     f.close()
     if debug: print("")
 
+# Make alphabetical list of all tags
+def maketagindex():
+    makedirs(outdir, exist_ok=True)
+    f = open(outdir + "/all_tags.html", 'w', encoding="utf-8")
+    f.write(header)
+    f.write("<ul>")
+    for row in cur.execute("SELECT text, COUNT(tags_ref.tag_id) as count "
+                           "FROM tags, tags_ref "
+                           "WHERE tags.tag_id = tags_ref.tag_id "
+                           "GROUP BY tags_ref.tag_id ORDER BY text ASC"):
+        f.write("<li><a href=\"tag_%s\">%s</a>"
+                " &mdash; %d posts" % (row["text"], row["text"], row["count"]))
+        if debug: print(".", end="")
+    f.write("</ul>")
+    if debug: print("")
+
+# Make a page for each tag
+def maketagpages():
+    makedirs(outdir, exist_ok=True)
+    tagfiles = {}
+    for row in cur.execute("SELECT tags.text AS tag, posts.title AS title, "
+                           "posts.filename AS fn, posts.publish_date AS pd, "
+                           "posts.content AS content "
+                           "FROM posts, tags, tags_ref "
+                           "WHERE tags_ref.post_id = posts.post_id "
+                           "AND tags_ref.tag_id = tags.tag_id "
+                           "ORDER BY tags.text ASC, posts.publish_date DESC"):
+        tagpath = path.join(outdir, "tag_" + row["tag"] + ".html")
+        if tagpath not in tagfiles.keys():
+            tagfiles[tagpath] = open(tagpath, 'w')
+            tagfiles[tagpath].write(header)
+        postpath = geturi(row["fn"],  row["pd"])
+        pdstring = pubdate2str(row["pd"], dateformat)
+        tagfiles[tagpath].write("<a href=\"" + postpath + "\"</a>" +
+                                "<h2>" + row["title"] + "</h2></a>\n")
+        tagfiles[tagpath].write("<p>" + pdstring + "</p>\n")
+        if debug: print(".", end="")
+    for p, f in tagfiles.items():
+        f.close()
+    if debug: print("")
+
 # Invoke functions from here
 
 if debug: print("Writing posts ", end = "")
@@ -110,5 +151,10 @@ if debug: print("Creating index.html ", end = "")
 makeindex()
 if debug: print("Creating all_posts.html ", end = "")
 makefullidx()
+if debug: print("Creating all_tags.html ", end = "")
+maketagindex()
+if debug: print("Creating tag_*.html ", end = "")
+maketagpages()
+
 if debug: print("Done.")
 conn.close()
