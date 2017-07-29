@@ -68,8 +68,7 @@ def makeindex():
                            "FROM posts ORDER BY publish_date DESC LIMIT ?",
                            (index_len,)):
         pdstring = pubdate2str(row["publish_date"], dateformat)
-        datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
-        outfile = path.join(datedir, row["filename"])
+        outfile = geturi(row["filename"], row["publish_date"])
         is_summary, summary = getsummary(row["content"])
         idxf.write("<h3><a href=\"{outfile}\">{title}</a></h3>\n"
                    "<p>{publish_date}</p>\n{summary}"
