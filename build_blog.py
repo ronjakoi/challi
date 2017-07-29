@@ -136,7 +136,7 @@ def maketagindex():
                            "FROM tags, tags_ref "
                            "WHERE tags.tag_id = tags_ref.tag_id "
                            "GROUP BY tags_ref.tag_id ORDER BY text ASC"):
-        f.write("<li><a href=\"tag_%s\">%s</a>"
+        f.write("<li><a href=\"tag/%s.html\">%s</a>"
                 " &mdash; %d posts" % (row["text"], row["text"], row["count"]))
         if debug: print(".", end="")
     f.write("</ul>")
@@ -144,7 +144,8 @@ def maketagindex():
 
 # Make a page for each tag
 def maketagpages():
-    makedirs(outdir, exist_ok=True)
+    tagdir = path.join(outdir, "tag")
+    makedirs(tagdir, exist_ok=True)
     tagfiles = {}
     for row in cur.execute("SELECT tags.text AS tag, posts.title AS title, "
                            "posts.filename AS fn, posts.publish_date AS pd, "
@@ -153,7 +154,7 @@ def maketagpages():
                            "WHERE tags_ref.post_id = posts.post_id "
                            "AND tags_ref.tag_id = tags.tag_id "
                            "ORDER BY tags.text ASC, posts.publish_date DESC"):
-        tagpath = path.join(outdir, "tag_" + row["tag"] + ".html")
+        tagpath = path.join(tagdir, row["tag"] + ".html")
         if tagpath not in tagfiles.keys():
             tagfiles[tagpath] = open(tagpath, 'w')
             tagfiles[tagpath].write(header)
@@ -183,10 +184,10 @@ if debug: print("Creating index.html ", end = "")
 makeindex()
 if debug: print("Creating all_posts.html ", end = "")
 makefullidx()
+if debug: print("Creating tag/*.html ", end = "")
+maketagpages()
 if debug: print("Creating all_tags.html ", end = "")
 maketagindex()
-if debug: print("Creating tag_*.html ", end = "")
-maketagpages()
 
 if debug: print("Done.")
 conn.close()
