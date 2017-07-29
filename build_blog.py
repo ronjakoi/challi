@@ -54,7 +54,7 @@ def getsummary(content):
             break
         else:
             ret += r
-    return is_summary, ret
+    return is_summary, markdown(ret)
 
 # Make blog index
 def makeindex():
