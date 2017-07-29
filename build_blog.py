@@ -2,6 +2,7 @@
 
 import sqlite3
 import locale
+import re
 from os import makedirs, path
 from markdown import markdown
 from datetime import datetime
@@ -10,6 +11,8 @@ pybb = "pybb.db"
 outdir = "blog"
 index_len = 10
 debug = True
+#break_re = r'<hr\s*\/?>'
+break_re = r'[*-_]( *[*-_]){2,}'
 
 locale.setlocale(locale.LC_ALL, 'fi_FI.utf8')
 
@@ -40,23 +43,42 @@ conn.row_factory = sqlite3.Row
 cur = conn.cursor()
 cur.execute("PRAGMA foreign_keys=1")
 
+# Get everything from post content up to the break
+def getsummary(content):
+    p = re.compile(break_re)
+    is_summary = False
+    ret = ""
+    for r in content.splitlines():
+        if p.match(r):
+            is_summary = True
+            break
+        else:
+            ret += r
+    return is_summary, ret
+
 # Make blog index
 def makeindex():
     makedirs(outdir, exist_ok=True)
     idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
     
-    idxf.write(header + "<ul>\n")
-    for row in cur.execute("SELECT title, publish_date, filename "
+    idxf.write(header)
+    for row in cur.execute("SELECT title, publish_date, filename, content "
                            "FROM posts ORDER BY publish_date DESC LIMIT ?",
                            (index_len,)):
         pdstring = pubdate2str(row["publish_date"], dateformat)
         datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
         outfile = path.join(datedir, row["filename"])
-        idxf.write(("    <li><strong>{publish_date}</strong> "
-                    "<a href=\"{outfile}\">{title}</a></li>\n")
-                    .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
+        is_summary, summary = getsummary(row["content"])
+        idxf.write("<h3><a href=\"{outfile}\">{title}</a></h3>\n"
+                   "<p>{publish_date}</p>\n{summary}"
+                    .format(outfile=outfile,
+                            publish_date=pdstring,
+                            title=row["title"],
+                            summary=summary))
+        if is_summary: idxf.write("<p><a href=\"{}\">Read more...</a></p>\n"
+                                  .format(outfile))
         if debug: print(".", end="")
-    idxf.write("</ul>\n" + footer)
+    idxf.write(footer)
     if debug: print("")
     idxf.close()
 
