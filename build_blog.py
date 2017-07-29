@@ -161,10 +161,11 @@ def maketagpages():
         postpath = geturi(row["fn"],  row["pd"])
         pdstring = pubdate2str(row["pd"], dateformat)
         tagfiles[tagpath].write("<a href=\"" + postpath + "\"</a>" +
-                                "<h2>" + row["title"] + "</h2></a>\n")
+                                "<h3>" + row["title"] + "</h3></a>\n")
         tagfiles[tagpath].write("<p>" + pdstring + "</p>\n")
         if debug: print(".", end="")
     for p, f in tagfiles.items():
+        f.write(footer)
         f.close()
     if debug: print("")
 
