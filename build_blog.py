@@ -29,7 +29,7 @@ footer = """
 dateformat = "%-d. %Bta %Y"
 
 def geturi(filename, pd):
-    return pd[0:4] + "/" + pd[5:7] + "/" + filename + ".html"
+    return pd[0:4] + "/" + pd[5:7] + "/" + filename
 
 def pubdate2str(pubdate, formatstr):
     pd = datetime.strptime(pubdate, "%Y-%m-%d %H:%M:%S")
@@ -51,7 +51,7 @@ def makeindex():
                            (index_len,)):
         pdstring = pubdate2str(row["publish_date"], dateformat)
         datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
-        outfile = path.join(datedir, row["filename"]) + ".html"
+        outfile = path.join(datedir, row["filename"])
         idxf.write(("    <li><strong>{publish_date}</strong> "
                     "<a href=\"{outfile}\">{title}</a></li>\n")
                     .format(outfile=outfile, publish_date=pdstring, title=row["title"]))
@@ -67,7 +67,7 @@ def writeposts():
         pdstring = pubdate2str(row["publish_date"], dateformat)
         datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
         makedirs(path.join(outdir, datedir), mode=0o750, exist_ok=True)
-        outfile = path.join(outdir, datedir, row["filename"]) + ".html"
+        outfile = path.join(outdir, datedir, row["filename"])
         # Write each post file
         with open(outfile, 'w', encoding="utf-8") as f:
             f.write(header)
