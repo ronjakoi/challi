@@ -44,6 +44,8 @@ cur = conn.cursor()
 cur.execute("PRAGMA foreign_keys=1")
 
 # Get everything from post content up to the break
+# If there is no break, return the whole thing
+# Return string is HTML
 def getsummary(content):
     p = re.compile(break_re)
     is_summary = False
