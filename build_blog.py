@@ -31,6 +31,11 @@ footer = """
 dateformat = "%-d. %Bta %Y"
 
 def geturi(filename, pd):
+    """
+    Get a post's URI. Arguments are the post's filename and publish_date.
+    This URI is for linking from other pages in the blog.
+    """
+
     return pd[0:4] + "/" + pd[5:7] + "/" + filename
 
 def pubdate2str(pubdate, formatstr):
@@ -42,10 +47,13 @@ conn.row_factory = sqlite3.Row
 cur = conn.cursor()
 cur.execute("PRAGMA foreign_keys=1")
 
-# Get everything from post content up to the break
-# If there is no break, return the whole thing
-# Return string is HTML
 def getsummary(content):
+    """
+    Get everything from post content up to the break.
+    If there is no break, return the whole thing.
+    Return string is HTML.
+    """
+
     p = re.compile(break_re)
     is_summary = False
     ret = ""
@@ -57,8 +65,9 @@ def getsummary(content):
             ret += r
     return is_summary, markdown(ret)
 
-# Get the tags for a post by id
 def gettagsline(post_id, prefix=""):
+    """Get the tags for a post by id"""
+
     tags = []
     for r in cur.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
                          "WHERE tags.tag_id = tags_ref.tag_id AND "
@@ -75,8 +84,9 @@ def gettagsline(post_id, prefix=""):
             format(tag=t, prefix=prefix)
     return ret
 
-# Make blog index
 def makeindex():
+    """Make the main index.html"""
+
     makedirs(outdir, exist_ok=True)
     idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
     
@@ -104,8 +114,9 @@ def makeindex():
     if debug: print("")
     idxf.close()
 
-# Write posts to files
 def writeposts():
+    """Write posts to files. Also make any necessary subdirectories."""
+
     cur.execute("SELECT post_id, title, publish_date, filename, content "
                 "FROM posts")
     for row in cur.fetchall():
@@ -124,8 +135,9 @@ def writeposts():
         if debug: print(".", end="")
     if debug: print("")
 
-# Make full index
 def makefullidx():
+    """Make an index page listing all posts"""
+
     makedirs(outdir, exist_ok=True)
     f = open(outdir + "/all_posts.html", 'w', encoding="utf-8")
     f.write(header)
@@ -150,8 +162,9 @@ def makefullidx():
     f.close()
     if debug: print("")
 
-# Make alphabetical list of all tags
 def maketagindex():
+    """Make alphabetical list of all tags"""
+
     makedirs(outdir, exist_ok=True)
     f = open(outdir + "/all_tags.html", 'w', encoding="utf-8")
     f.write(header)
@@ -166,8 +179,9 @@ def maketagindex():
     f.write("</ul>")
     if debug: print("")
 
-# Make a page for each tag
 def maketagpages():
+    """Make a page for each tag"""
+
     tagdir = path.join(outdir, "tag")
     makedirs(tagdir, exist_ok=True)
     tagfiles = {}
