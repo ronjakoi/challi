@@ -50,7 +50,7 @@ def getsummary(content):
     p = re.compile(break_re)
     is_summary = False
     ret = ""
-    for r in content.splitlines():
+    for r in content.splitlines(keepends=True):
         if p.match(r):
             is_summary = True
             break
@@ -162,7 +162,7 @@ def maketagpages():
         pdstring = pubdate2str(row["pd"], dateformat)
         has_summary, summary = getsummary(row["content"])
         tagfiles[tagpath].write("<h3><a href=\"{outfile}\">{title}</a></h3>\n"
-                       "<p>{publish_date}</p>\n{summary}"
+                       "<p>{publish_date}</p>\n{summary}\n"
                        .format(outfile=postpath,
                                 publish_date=pdstring,
                                 title=row["title"],
