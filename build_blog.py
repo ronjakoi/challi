@@ -59,7 +59,7 @@ def getsummary(content):
     return is_summary, markdown(ret)
 
 # Get the tags for a post by id
-def gettagsline(post_id):
+def gettagsline(post_id, prefix=""):
     tags = []
     for r in cur.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
                          "WHERE tags.tag_id = tags_ref.tag_id AND "
@@ -69,9 +69,11 @@ def gettagsline(post_id):
     ret = ""
     for i, t in enumerate(tags):
         if i == 0:
-            ret += "<a href=\"tag/{tag}.html\">{tag}</a>".format(tag=t)
+            ret += ("<a href=\"{prefix}tag/{tag}.html\">{tag}</a>").\
+            format(tag=t, prefix=prefix)
         else:
-            ret += " <a href=\"tag/{tag}.html\">{tag}</a>".format(tag=t)
+            ret += (" <a href=\"{prefix}tag/{tag}.html\">{tag}</a>").\
+            format(tag=t, prefix=prefix)
     return ret
 
 # Make blog index
@@ -117,7 +119,8 @@ def writeposts():
             f.write(header)
             f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
             f.write(markdown(row["content"]))
-            f.write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
+            f.write("<p>Luokat: {}</p>\n".
+                    format(gettagsline(row["post_id"], "../../")))
             f.write(footer)
         if debug: print(".", end="")
     if debug: print("")
@@ -195,7 +198,8 @@ def maketagpages():
             "<p><a href=\"{}\">Read more...</a></p>\n"
             .format(postpath))
 
-        tagfiles[tagpath].write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
+        tagfiles[tagpath].write("<p>Luokat: {}</p>\n".
+                                format(gettagsline(row["post_id"], "../")))
 
         if debug: print(".", end="")
     for p, f in tagfiles.items():
