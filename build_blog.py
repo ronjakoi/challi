@@ -11,7 +11,6 @@ pybb = "pybb.db"
 outdir = "blog"
 index_len = 10
 debug = True
-#break_re = r'<hr\s*\/?>'
 break_re = r'[*-_]( *[*-_]){2,}'
 
 locale.setlocale(locale.LC_ALL, 'fi_FI.utf8')
