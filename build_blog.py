@@ -58,15 +58,32 @@ def getsummary(content):
             ret += r
     return is_summary, markdown(ret)
 
+# Get the tags for a post by id
+def gettagsline(post_id):
+    tags = []
+    for r in cur.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
+                         "WHERE tags.tag_id = tags_ref.tag_id AND "
+                         "posts.post_id = tags_ref.post_id AND "
+                         "posts.post_id = ?", (post_id,)):
+        tags.append(r[0])
+    ret = ""
+    for i, t in enumerate(tags):
+        if i == 0:
+            ret += "<a href=\"tag/{tag}.html\">{tag}</a>".format(tag=t)
+        else:
+            ret += " <a href=\"tag/{tag}.html\">{tag}</a>".format(tag=t)
+    return ret
+
 # Make blog index
 def makeindex():
     makedirs(outdir, exist_ok=True)
     idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
     
     idxf.write(header)
-    for row in cur.execute("SELECT title, publish_date, filename, content "
-                           "FROM posts ORDER BY publish_date DESC LIMIT ?",
-                           (index_len,)):
+    cur.execute("SELECT post_id, title, publish_date, filename, content "
+                "FROM posts ORDER BY publish_date DESC LIMIT ?",
+                (index_len,))
+    for row in cur.fetchall():
         pdstring = pubdate2str(row["publish_date"], dateformat)
         outfile = geturi(row["filename"], row["publish_date"])
         is_summary, summary = getsummary(row["content"])
@@ -78,6 +95,9 @@ def makeindex():
                             summary=summary))
         if is_summary: idxf.write("<p><a href=\"{}\">Read more...</a></p>\n"
                                   .format(outfile))
+
+        idxf.write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
+
         if debug: print(".", end="")
     idxf.write(footer)
     if debug: print("")
@@ -85,8 +105,9 @@ def makeindex():
 
 # Write posts to files
 def writeposts():
-    for row in cur.execute("SELECT title, publish_date, filename, content "
-                       "FROM posts"):
+    cur.execute("SELECT post_id, title, publish_date, filename, content "
+                "FROM posts")
+    for row in cur.fetchall():
         pdstring = pubdate2str(row["publish_date"], dateformat)
         datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
         makedirs(path.join(outdir, datedir), mode=0o750, exist_ok=True)
@@ -96,6 +117,7 @@ def writeposts():
             f.write(header)
             f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
             f.write(markdown(row["content"]))
+            f.write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
             f.write(footer)
         if debug: print(".", end="")
     if debug: print("")
@@ -147,13 +169,15 @@ def maketagpages():
     tagdir = path.join(outdir, "tag")
     makedirs(tagdir, exist_ok=True)
     tagfiles = {}
-    for row in cur.execute("SELECT tags.text AS tag, posts.title AS title, "
-                           "posts.filename AS fn, posts.publish_date AS pd, "
-                           "posts.content AS content "
-                           "FROM posts, tags, tags_ref "
-                           "WHERE tags_ref.post_id = posts.post_id "
-                           "AND tags_ref.tag_id = tags.tag_id "
-                           "ORDER BY tags.text ASC, posts.publish_date DESC"):
+    cur.execute("SELECT tags.text AS tag, posts.title AS title, "
+                "posts.filename AS fn, posts.publish_date AS pd, "
+                "posts.content AS content, "
+                "posts.post_id AS post_id "
+                "FROM posts, tags, tags_ref "
+                "WHERE tags_ref.post_id = posts.post_id "
+                "AND tags_ref.tag_id = tags.tag_id "
+                "ORDER BY tags.text ASC, posts.publish_date DESC")
+    for row in cur.fetchall():
         tagpath = path.join(tagdir, row["tag"] + ".html")
         if tagpath not in tagfiles.keys():
             tagfiles[tagpath] = open(tagpath, 'w')
@@ -170,6 +194,9 @@ def maketagpages():
         if has_summary: tagfiles[tagpath].write(
             "<p><a href=\"{}\">Read more...</a></p>\n"
             .format(postpath))
+
+        tagfiles[tagpath].write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
+
         if debug: print(".", end="")
     for p, f in tagfiles.items():
         f.write(footer)
