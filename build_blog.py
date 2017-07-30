@@ -158,7 +158,7 @@ def maketagpages():
         if tagpath not in tagfiles.keys():
             tagfiles[tagpath] = open(tagpath, 'w')
             tagfiles[tagpath].write(header)
-        postpath = geturi(row["fn"],  row["pd"])
+        postpath = "../" + geturi(row["fn"],  row["pd"])
         pdstring = pubdate2str(row["pd"], dateformat)
         has_summary, summary = getsummary(row["content"])
         tagfiles[tagpath].write("<h3><a href=\"{outfile}\">{title}</a></h3>\n"
