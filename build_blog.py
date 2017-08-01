@@ -338,6 +338,14 @@ def rebuild():
     This can be used to recreate
     the blog from e.g. a database backup if something's gone wrong."""
 
+@click.command()
+@click.argument('file', nargs=-1)
+def bb_import(file):
+    """Import posts from Bashblog Markdown files.
+
+    Arguments are a list of Markdown files.
+    """
+
 cli.add_command(post)
 cli.add_command(list_posts)
 cli.add_command(edit)
@@ -347,6 +355,7 @@ cli.add_command(publish)
 cli.add_command(rm)
 cli.add_command(rebuild)
 cli.add_command(init)
+cli.add_command(bb_import)
 
 if __name__ == '__main__':
     conn = sqlite3.connect(pybb)
