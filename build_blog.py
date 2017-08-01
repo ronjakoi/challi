@@ -3,7 +3,7 @@
 import sqlite3, locale, re, click
 from os import makedirs, path
 from markdown import markdown
-from datetime import datetime
+from datetime import datetime, timezone
 
 pybb = "pybb.db"
 outdir = "blog"
@@ -237,11 +237,66 @@ def init(dir):
 @click.command()
 @click.option('--hidden', is_flag=True,
                help="Make this post hidden (a draft).")
-@click.option('--input', '-i', type=click.File('r'),
-               help="Read post content from file (don't open an editor).")
-def post(hidden, input):
+@click.option('--get-from', '-g', type=click.File('r'),
+               help="Read post content (and tags) from file (don't open an editor).")
+def post(hidden, get_from):
     """Write a new blog post."""
-    click.echo("Make a new post")
+
+    post_template = \
+"""This line is your title
+
+The body of your post goes here.
+
+Luokat: comma-separated, list, of, tags"""
+
+    query = """INSERT INTO posts
+            (title, content, publish_date, filename, hidden)
+            VALUES (?, ?, ?, ?, ?)"""
+
+    pd = datetime.strftime(datetime.now(timezone.utc), "%Y-%m-%d %H:%M:%S")
+
+    if get_from:
+        post_text = get_from.read()
+    else:
+        post_text = click.edit(text=post_template, extension=".md",
+                       require_save=True)
+    if post_text is None or post_text == post_template:
+        raise click.UsageError("No edits made to template")
+
+    body = ""
+    for i, line in enumerate(post_text.splitlines()):
+        if i == 0:
+            title = line.strip()
+        elif line.startswith("Luokat: "):
+            tags = line.strip().replace("Luokat: ", "", 1).split(", ")
+        else:
+            body += line + "\n"
+
+    fromchars = "äöåøæđðčžš"
+    tochars   = "aoaoaddczs"
+    transtable = str.maketrans(fromchars, tochars)
+
+    filename = title.replace(" ", "_").lower()
+    filename = re.sub('[^\w\d]', "", filename).strip('_') + ".html"
+    filename = filename.translate(transtable)
+
+    cur.execute(query, (title, body, pd, filename, hidden))
+    post_id = cur.lastrowid
+
+    for tag in tags:
+        # Check if a tag with this text already exists
+        cur.execute("SELECT tag_id FROM tags WHERE text = ?", (tag,))
+        try:
+            tag_id = cur.fetchone()[0]
+        # If not, insert it
+        except TypeError: # fetchone() returns None if no more rows
+            cur.execute("INSERT INTO tags (text) VALUES (?)", (tag,))
+            tag_id = cur.lastrowid
+        # Insert a relation tag <-> post
+        cur.execute("INSERT INTO tags_ref (tag_id, post_id) VALUES (?, ?)",
+                    (tag_id, post_id))
+    conn.commit()
+
 
 @click.command(name="ls")
 @click.option('--order-by',
