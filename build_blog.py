@@ -254,22 +254,34 @@ def post(hidden, input):
 def list_posts(order_by, collation):
     """List all blog posts."""
 
+    # TODO: --order-by and --asc/--desc do nothing right now.
+    # Wasn't working when I tried :(
+
     # Get terminal width and height
     tw, th = click.get_terminal_size()
-    rowstr = "{:>6} | {:<19} | {:<25}"
+    rowstr = "{:>6} | {:>16} | {:>6} | {:<25}"
     # Print a '-' separator with '+' signs at column borders,
     # fill to terminal width
-    separator = "-"*6 + "-+-" + "-"*19 + "-+-"
+    separator = "-"*6 + "-+-" + "-"*16 + "-+--------+-"
     separator += "-"*(tw-len(separator))
-    query = "SELECT post_id, publish_date, title FROM posts ORDER BY publish_date DESC"
+    query = """SELECT post_id, publish_date, title, hidden FROM
+    posts ORDER BY publish_date DESC"""
     if order_by == "date" or order_by is None:
         order_by = "publish_date"
-    click.echo("query was:\n" + query)
-    click.echo(rowstr.format("ID", "Date", "Title"))
-    click.echo(separator)
+    list_text = rowstr.format("ID", "Date", "Hidden", "Title") + "\n"
+    list_text += separator + "\n"
     for row in cur.execute(query):#,(order_by,)):
-        click.echo(rowstr.format(row["post_id"], row["publish_date"],
-                   row["title"]))
+        if row["hidden"]:
+            hidden = "✔"
+        else:
+            hidden = " "
+        date = row["publish_date"][:16]
+        list_text += rowstr.format(row["post_id"], date,
+                     hidden, row["title"]) + "\n"
+    if list_text.count("\n")+1 > th:
+        click.echo_via_pager(list_text)
+    else:
+        click.echo(list_text)
 
 @click.command()
 @click.argument('id', type=click.INT)
