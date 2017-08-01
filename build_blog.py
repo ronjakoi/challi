@@ -371,7 +371,7 @@ cli.add_command(publish)
 cli.add_command(rm)
 cli.add_command(rebuild)
 cli.add_command(init)
-cli.add_command(bb_import)
+#cli.add_command(bb_import)
 
 if __name__ == '__main__':
     conn = sqlite3.connect(pybb)
