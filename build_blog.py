@@ -221,18 +221,18 @@ def cli():
     pass
 
 @click.command()
-@click.argument("dir",
+@click.argument("directory",
                  required=False,
                  type=click.Path(dir_okay=True, writable=True))
-def init(dir):
+def init(directory):
     """Initialize a new blog.
 
     This creates an empty database file.
     By default the current working directory is used,
     but you can optionally provide a different one.
     """
-    if not dir: dir = "."
-    click.echo("Initializing a new blog in `%s'" % dir)
+    if not directory: directory = "."
+    click.echo("Initializing a new blog in `%s'" % directory)
 
 @click.command()
 @click.option('--hidden', is_flag=True,
