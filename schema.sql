@@ -4,8 +4,9 @@ CREATE TABLE `tags_ref` (
 	`tag_ref_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
 	`tag_id`	INTEGER NOT NULL,
 	`post_id`	INTEGER NOT NULL,
-	FOREIGN KEY(`tag_id`) REFERENCES tags("tag_id"),
-	FOREIGN KEY(`post_id`) REFERENCES posts("post_id")
+	FOREIGN KEY(`tag_id`) REFERENCES tags("tag_id") ON DELETE CASCADE,
+	FOREIGN KEY(`post_id`) REFERENCES posts("post_id") ON DELETE CASCADE,
+	CONSTRAINT `tag_post_unique` UNIQUE (`tag_id`, `post_id`)
 );
 -- One row for each tag
 CREATE TABLE `tags` (
@@ -36,8 +37,9 @@ CREATE TABLE `authors_ref` (
 	`author_id`	INTEGER NOT NULL,
 	`post_id`	INTEGER NOT NULL,
 	FOREIGN KEY(`author_id`) REFERENCES authors("author_id"),
-	FOREIGN KEY(`post_id`) REFERENCES posts("post_id")
+	FOREIGN KEY(`post_id`) REFERENCES posts("post_id") ON DELETE CASCADE
 );
 CREATE INDEX `post_pub_date` ON `posts` (`publish_date` DESC);
 CREATE INDEX `author_name` ON `authors` (`name` ASC);
+CREATE UNIQUE INDEX `tag_ref_i` ON `tags_ref`(`tag_id`, `post_id`);
 COMMIT;
