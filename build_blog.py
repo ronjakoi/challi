@@ -77,6 +77,17 @@ def gettagsline(post_id, prefix=""):
             format(tag=t, prefix=prefix)
     return ret
 
+def split_input(post_text):
+    body = ""
+    for i, line in enumerate(post_text.splitlines()):
+        if i == 0:
+            title = line.strip()
+        elif line.startswith("Luokat: "):
+            tags = line.strip().replace("Luokat: ", "", 1).split(", ")
+        else:
+            body += line + "\n"
+    return title, body, tags
+
 def makeindex():
     """Make the main index.html"""
 
@@ -211,6 +222,28 @@ def maketagpages():
         f.write(footer)
         f.close()
 
+def db_tagpost(tags, post_id):
+    # Delete all tag-post relations for this post. Needed for updates.
+    cur.execute("DELETE FROM tags_ref WHERE post_id = ?", (post_id,))
+    for tag in tags:
+        # Check if a tag with this text already exists
+        cur.execute("SELECT tag_id FROM tags WHERE text = ?", (tag,))
+        try:
+            tag_id = cur.fetchone()[0]
+        # If not, insert it
+        except TypeError: # fetchone() returns None if no more rows
+            cur.execute("INSERT INTO tags (text) VALUES (?)", (tag,))
+            tag_id = cur.lastrowid
+        # Insert a relation tag <-> post
+        cur.execute("INSERT INTO tags_ref (tag_id, post_id) VALUES (?, ?)",
+                    (tag_id, post_id))
+
+def db_rm_orphan_tags():
+    cur.execute("""DELETE FROM tags
+    WHERE NOT EXISTS(
+        SELECT 1 FROM tags_ref WHERE tags_ref.tag_id = tags.tag_id)
+    """)
+
 # Click stuff
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help']))
@@ -262,14 +295,7 @@ Luokat: comma-separated, list, of, tags"""
     if post_text is None or post_text == post_template:
         raise click.UsageError("No edits made to template")
 
-    body = ""
-    for i, line in enumerate(post_text.splitlines()):
-        if i == 0:
-            title = line.strip()
-        elif line.startswith("Luokat: "):
-            tags = line.strip().replace("Luokat: ", "", 1).split(", ")
-        else:
-            body += line + "\n"
+    title, body, tags = split_input(post_text)
 
     fromchars = "äöåøæđðčžš"
     tochars   = "aoaoaddczs"
@@ -282,18 +308,7 @@ Luokat: comma-separated, list, of, tags"""
     cur.execute(query, (title, body, pd, filename, hidden))
     post_id = cur.lastrowid
 
-    for tag in tags:
-        # Check if a tag with this text already exists
-        cur.execute("SELECT tag_id FROM tags WHERE text = ?", (tag,))
-        try:
-            tag_id = cur.fetchone()[0]
-        # If not, insert it
-        except TypeError: # fetchone() returns None if no more rows
-            cur.execute("INSERT INTO tags (text) VALUES (?)", (tag,))
-            tag_id = cur.lastrowid
-        # Insert a relation tag <-> post
-        cur.execute("INSERT INTO tags_ref (tag_id, post_id) VALUES (?, ?)",
-                    (tag_id, post_id))
+    db_tagpost(tags, post_id)
 
 
 @click.command(name="ls")
@@ -341,29 +356,33 @@ def list_posts(order_by, collation):
 def edit(id):
     """Edit a post with given ID."""
 
+    tagquery = """SELECT text AS tag FROM tags, tags_ref WHERE
+    tags_ref.post_id = ? AND tags.tag_id = tags_ref.tag_id
+    ORDER BY tag"""
     postquery = "SELECT title, content FROM posts WHERE post_id = ?"
+    updatequery = """UPDATE posts SET title = ?, content = ?
+                  WHERE post_id = ?"""
     cur.execute(postquery,(id,))
     try:
         title, content = cur.fetchone()
     except:
         raise click.BadParameter("No post found with ID %d" % id)
-    tagquery = """SELECT text AS tag FROM tags, tags_ref WHERE
-    tags_ref.post_id = ? AND tags.tag_id = tags_ref.tag_id
-    ORDER BY tag"""
+
     cur.execute(tagquery, (id,))
     tagsline = "Luokat: "
-    tagslist = (r[0] for r in cur.fetchall())
+    tagslist = (r[0] for r in cur)
     if tagslist is not None:
         tagsline += ", ".join(tagslist)
-    print(tagsline)
     content += tagsline
     new_content = click.edit(text=(title + "\n" + content),
         extension=".md", require_save=True)
 
     if new_content is not None:
-        click.echo("Congrats, you've made an edit!")
+        title, body, tags = split_input(new_content)
+        cur.execute(updatequery, (title, body, id))
+        db_tagpost(tags, id)
     else:
-        click.echo("Edit aborted.")
+        raise click.UsageError("No edits made to template")
 
 @click.command()
 @click.argument('id', type=click.INT)
