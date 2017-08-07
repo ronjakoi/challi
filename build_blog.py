@@ -294,7 +294,6 @@ Luokat: comma-separated, list, of, tags"""
         # Insert a relation tag <-> post
         cur.execute("INSERT INTO tags_ref (tag_id, post_id) VALUES (?, ?)",
                     (tag_id, post_id))
-    conn.commit()
 
 
 @click.command(name="ls")
@@ -430,8 +429,11 @@ cli.add_command(init)
 if __name__ == '__main__':
     conn = sqlite3.connect(pybb)
     conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("PRAGMA foreign_keys=1")
-    cli()
-    conn.close()
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute("PRAGMA foreign_keys=1")
+            cli()
+    except sqlite3.IntegrityError as e:
+        click.echo("SQL error: %s" % e)
 
