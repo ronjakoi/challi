@@ -61,21 +61,13 @@ def getsummary(content):
 def gettagsline(post_id, prefix=""):
     """Get the tags for a post by id"""
 
-    tags = []
-    for r in cur.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
+    cur = conn.cursor()
+    cur.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
                          "WHERE tags.tag_id = tags_ref.tag_id AND "
                          "posts.post_id = tags_ref.post_id AND "
-                         "posts.post_id = ?", (post_id,)):
-        tags.append(r[0])
-    ret = ""
-    for i, t in enumerate(tags):
-        if i == 0:
-            ret += ("<a href=\"{prefix}tag/{tag}.html\">{tag}</a>").\
-            format(tag=t, prefix=prefix)
-        else:
-            ret += (" <a href=\"{prefix}tag/{tag}.html\">{tag}</a>").\
-            format(tag=t, prefix=prefix)
-    return ret
+                         "posts.post_id = ?", (post_id,))
+    return ", ".join("<a href=\"{prefix}tag/{tag}.html\">{tag}</a>".\
+    format(tag=r[0], prefix=prefix) for r in cur)
 
 def split_input(post_text):
     body = ""
@@ -98,7 +90,7 @@ def makeindex():
     cur.execute("SELECT post_id, title, publish_date, filename, content "
                 "FROM posts ORDER BY publish_date DESC LIMIT ?",
                 (index_len,))
-    with click.progressbar(cur, label="Making index.html", width=0, length=cur.rowcount) as posts:
+    with click.progressbar(cur, label="Making index.html", width=0) as posts:
         for row in posts:
             pdstring = pubdate2str(row["publish_date"], dateformat)
             outfile = geturi(row["filename"], row["publish_date"])
@@ -112,7 +104,6 @@ def makeindex():
             if is_summary: idxf.write("<p><a href=\"{}\">Read more...</a></p>\n"
                                       .format(outfile))
             idxf.write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
-            #posts.update(1)
     idxf.write(footer)
     idxf.close()
 
@@ -121,7 +112,7 @@ def writeposts():
 
     cur.execute("SELECT post_id, title, publish_date, filename, content "
                 "FROM posts")
-    with click.progressbar(cur, label="Writing posts", width=0, length=cur.rowcount) as posts:
+    with click.progressbar(cur, label="Writing posts", width=0) as posts:
         for row in posts:
             pdstring = pubdate2str(row["publish_date"], dateformat)
             datedir = path.join(row["publish_date"][0:4], row["publish_date"][5:7])
@@ -146,7 +137,7 @@ def makefullidx():
     cur.execute("SELECT title, publish_date, filename "
                 "FROM posts ORDER BY publish_date DESC")
 
-    with click.progressbar(cur, label="Making all_posts.html", width=0, length=cur.rowcount) as posts:
+    with click.progressbar(cur, label="Making all_posts.html", width=0) as posts:
         for row in posts:
             pd = datetime.strptime(row["publish_date"], "%Y-%m-%d %H:%M:%S")
             thismonth = (pd.year, pd.month)
@@ -175,8 +166,7 @@ def maketagindex():
                 "FROM tags, tags_ref "
                 "WHERE tags.tag_id = tags_ref.tag_id "
                 "GROUP BY tags_ref.tag_id ORDER BY text ASC")
-    with click.progressbar(cur, label="Making all_tags.html", length=cur.rowcount,
-    width=0) as tags:
+    with click.progressbar(cur, label="Making all_tags.html", width=0) as tags:
         for row in tags:
             f.write("<li><a href=\"tag/%s.html\">%s</a>"
                     " &mdash; %d posts" % (row["text"], row["text"], row["count"]))
@@ -196,7 +186,7 @@ def maketagpages():
                 "WHERE tags_ref.post_id = posts.post_id "
                 "AND tags_ref.tag_id = tags.tag_id "
                 "ORDER BY tags.text ASC, posts.publish_date DESC")
-    with click.progressbar(cur, label="Making tag_*.html", width=0, length=cur.rowcount) \
+    with click.progressbar(cur, label="Making tag_*.html", width=0) \
     as tags:
         for row in tags:
             tagpath = path.join(tagdir, row["tag"] + ".html")
