@@ -305,7 +305,7 @@ def post(hidden, get_from):
     transtable = str.maketrans(fromchars, tochars)
 
     filename = title.replace(" ", "_").lower()
-    filename = re.sub('[^\w\d]', "", filename).strip('_') + ".html"
+    filename = re.sub(r'[^\w\d]', "", filename).strip('_') + ".html"
     filename = filename.translate(transtable)
 
     cur.execute(query, (title, body, pd, filename, hidden))
@@ -356,8 +356,8 @@ def list_posts(order_by, collation):
 
 
 @click.command()
-@click.argument('id', type=click.INT)
-def edit(id):
+@click.argument('id_', type=click.INT, metavar='ID')
+def edit(id_):
     """Edit a post with given ID."""
 
     tagquery = """SELECT text AS tag FROM tags, tags_ref WHERE
@@ -366,13 +366,13 @@ def edit(id):
     postquery = "SELECT title, content FROM posts WHERE post_id = ?"
     updatequery = """UPDATE posts SET title = ?, content = ?
                   WHERE post_id = ?"""
-    cur.execute(postquery, (id,))
+    cur.execute(postquery, (id_,))
     try:
         title, content = cur.fetchone()
     except:
-        raise click.BadParameter("No post found with ID %d" % id)
+        raise click.BadParameter("No posts found.", param=id_, param_hint="ID")
 
-    cur.execute(tagquery, (id,))
+    cur.execute(tagquery, (id_,))
     tagsline = "Luokat: "
     tagslist = (r[0] for r in cur)
     if tagslist is not None:
@@ -383,22 +383,22 @@ def edit(id):
 
     if new_content is not None:
         title, body, tags = split_input(new_content)
-        cur.execute(updatequery, (title, body, id))
-        db_tagpost(tags, id)
+        cur.execute(updatequery, (title, body, id_))
+        db_tagpost(tags, id_)
     else:
         raise click.UsageError("No edits made to template")
 
 
 @click.command()
-@click.argument('id', type=click.INT)
-def hide(id):
+@click.argument('id_', type=click.INT, metavar='ID')
+def hide(id_):
     """Flag a post with given ID as hidden."""
     click.echo("Hide a post")
 
 
 @click.command()
-@click.argument('id', type=click.INT)
-def unhide(id):
+@click.argument('id_', type=click.INT, metavar='ID')
+def unhide(id_):
     """Flag a post with given ID as not hidden."""
     click.echo("Unhide a post")
 
@@ -413,15 +413,31 @@ def publish():
 
 
 @click.command()
-@click.argument('id', type=click.INT)
-def rm():
+@click.argument('id_', type=click.INT, metavar='ID')
+def rm(id_):
     """Remove a post with given ID. The post is deleted from both
     the directory tree and the database.
 
     Remember that you can also hide posts. This retains the data in
     the database, in case you want to use it again later.
     """
-    pass
+    import os
+
+    try:
+        pd, fn = cur.execute("SELECT publish_date, filename FROM posts WHERE post_id = ?", (id_,))[0]
+    except:
+        raise click.BadParameter("No posts found.", param=id_, param_hint="ID")
+    else:
+        # Remove the file
+        os.remove(geturi(fn, pd))
+        # Attempt to prune the directory tree the file was in
+        try:
+            os.removedirs(path.join(outdir, path.dirname(fn)))
+        except OSError:
+            pass
+        cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
+        conn.commit()
+
 
 
 @click.command()
@@ -446,16 +462,9 @@ def bb_import(file):
     """
     pass
 
+for func in post, list_posts, edit, hide, unhide, publish, rm, rebuild, init:
+    cli.add_command(func)
 
-cli.add_command(post)
-cli.add_command(list_posts)
-cli.add_command(edit)
-cli.add_command(hide)
-cli.add_command(unhide)
-cli.add_command(publish)
-cli.add_command(rm)
-cli.add_command(rebuild)
-cli.add_command(init)
 # cli.add_command(bb_import)
 
 if __name__ == '__main__':
