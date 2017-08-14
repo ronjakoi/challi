@@ -424,19 +424,21 @@ def rm(id_):
     import os
 
     try:
-        pd, fn = cur.execute("SELECT publish_date, filename FROM posts WHERE post_id = ?", (id_,))[0]
+        pd, fn = next(cur.execute("SELECT publish_date, filename FROM posts WHERE post_id = ?", (id_,)))
     except:
         raise click.BadParameter("No posts found.", param=id_, param_hint="ID")
     else:
         # Remove the file
-        os.remove(geturi(fn, pd))
+        os.remove(path.join(outdir, geturi(fn, pd)))
+        #print(path.join(outdir, geturi(fn, pd)))
         # Attempt to prune the directory tree the file was in
         try:
-            os.removedirs(path.join(outdir, path.dirname(fn)))
+            os.removedirs(path.join(outdir, path.dirname(geturi(fn, pd))))
         except OSError:
             pass
         cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
         conn.commit()
+        click.echo("Deleted post with id {}".format(id_))
 
 
 
