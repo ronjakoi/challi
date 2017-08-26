@@ -209,8 +209,8 @@ def maketagpages():
                 tagfiles[tagpath].write("<p><a href=\"{}\">Read more...</a></p>\n"
                                         .format(postpath))
 
-            tagfiles[tagpath].write("<p>Luokat: {}</p>\n".
-                                    format(gettagsline(row["post_id"], "../")))
+            tagfiles[tagpath].write("<p>{} {}</p>\n".
+                                    format(tags_text, gettagsline(row["post_id"], "../")))
     for f in tagfiles.values():
         f.write(footer)
         f.close()
@@ -269,7 +269,7 @@ def init(directory):
         directory = "."
     init_db = path.join(directory, pybb)
     if path.isfile(init_db):
-        click.Abort("Database file `%s' exists" % init_db)
+        raise click.Abort("Database file `%s' exists" % init_db)
 
     click.echo("Initializing empty database in `%s'..." % init_db)
     init_conn = sqlite3.connect(init_db)
@@ -336,7 +336,7 @@ def post(hidden, get_from):
     post_template = \
         ("This line is your title\n\n"
          "The body of your post goes here.\n\n"
-         "Luokat: comma-separated, list, of, tags")
+         "{} comma-separated, list, of, tags").format(tags_text)
 
     query = """INSERT INTO posts
             (title, content, publish_date, filename, hidden)
@@ -366,6 +366,7 @@ def post(hidden, get_from):
     post_id = cur.lastrowid
 
     db_tagpost(tags, post_id)
+    rebuild()
 
 
 @click.command(name="ls")
@@ -439,6 +440,7 @@ def edit(id_):
         title, body, tags = split_input(new_content)
         cur.execute(updatequery, (title, body, id_))
         db_tagpost(tags, id_)
+        rebuild()
     else:
         raise click.UsageError("No edits made to template")
 
@@ -495,6 +497,7 @@ def rm(id_):
         cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
         conn.commit()
         click.echo("Deleted post with id {}".format(id_))
+        rebuild()
 
 
 @click.command()
