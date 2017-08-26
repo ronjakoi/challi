@@ -21,7 +21,8 @@ for top, dirs, files in os.walk(bb_dir):
     if os.path.splitext(name)[1] in (".md", ".MD", "*.markdown"):
       # Get each file's last modified timestamp
       mtime = os.stat(os.path.join(top, name)).st_mtime
-      pybb_post_date = datetime.utcfromtimestamp(mtime)
+      pybb_post_date = datetime.utcfromtimestamp(mtime). \
+                       strftime("%Y-%m-%d %H:%M:%S")
       # Get each filename without extension
       pybb_post_filename = os.path.splitext(name)[0] + ".html"
       # Open each file read-only
