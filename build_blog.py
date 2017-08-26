@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-import sqlite3, locale, re, click
 import configparser
-from os import makedirs, path, remove
-from markdown import markdown
+import locale
+import re
+import sqlite3
+from os import makedirs, path
 from datetime import datetime, timezone
+from markdown import markdown
+import click
 
 pybb = "pybb.db"
 debug = True
@@ -53,7 +56,7 @@ def gettagsline(post_id, prefix=""):
                       "WHERE tags.tag_id = tags_ref.tag_id AND "
                       "posts.post_id = tags_ref.post_id AND "
                       "posts.post_id = ?", (post_id,))
-    return ", ".join("<a href=\"{prefix}tag/{tag}.html\">{tag}</a>". \
+    return ", ".join("<a href=\"{prefix}tag/{tag}.html\">{tag}</a>".
                      format(tag=r[0], prefix=prefix) for r in cur_inner)
 
 
@@ -119,7 +122,7 @@ def writeposts():
                 f.write(markdown(row["content"]))
                 f.write("<p>{} {}</p>\n".
                         format(config.get("template", "tags_line_header", fallback="Tags:"),
-                        gettagsline(row["post_id"], "../../")))
+                               gettagsline(row["post_id"], "../../")))
                 f.write(footer)
 
 
@@ -208,7 +211,7 @@ def maketagpages():
 
             tagfiles[tagpath].write("<p>Luokat: {}</p>\n".
                                     format(gettagsline(row["post_id"], "../")))
-    for p, f in tagfiles.items():
+    for f in tagfiles.values():
         f.write(footer)
         f.close()
 
@@ -240,7 +243,9 @@ def set_post_hidden(id_, hidden):
     cur.execute("UPDATE posts SET hidden = ? WHERE id = ?", (hidden, id_))
     conn.commit()
 
+
 # Click stuff
+
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help']))
 @click.version_option()
@@ -490,7 +495,6 @@ def rm(id_):
         cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
         conn.commit()
         click.echo("Deleted post with id {}".format(id_))
-
 
 
 @click.command()
