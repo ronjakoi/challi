@@ -11,6 +11,7 @@ debug = True
 break_re = r'[*-_]( *[*-_]){2,}'
 config_file = "config.ini"
 
+
 def geturi(filename, pd):
     """
     Get a post's URI. Arguments are the post's filename and publish_date.
@@ -73,8 +74,8 @@ def makeindex():
 
     makedirs(outdir, exist_ok=True)
     idxf = open(path.join(outdir,
-                config.get("files", "index_file", fallback="index.html")),
-                'w+', encoding="utf-8")
+                          config.get("files", "index_file", fallback="index.html")),
+                          'w+', encoding="utf-8")
 
     idxf.write(header)
     cur.execute("SELECT post_id, title, publish_date, filename, content "
@@ -233,6 +234,11 @@ def db_rm_orphan_tags():
     cur.execute("DELETE FROM tags"
                 "WHERE NOT EXISTS(SELECT 1 FROM tags_ref WHERE tags_ref.tag_id = tags.tag_id)")
 
+
+def set_post_hidden(id_, hidden):
+    """Set the hidden status of a post."""
+    cur.execute("UPDATE posts SET hidden = ? WHERE id = ?", (hidden, id_))
+    conn.commit()
 
 # Click stuff
 
@@ -436,14 +442,16 @@ def edit(id_):
 @click.argument('id_', type=click.INT, metavar='ID')
 def hide(id_):
     """Flag a post with given ID as hidden."""
-    click.echo("Hide a post")
+    set_post_hidden(id_, True)
+    rebuild()
 
 
 @click.command()
 @click.argument('id_', type=click.INT, metavar='ID')
 def unhide(id_):
     """Flag a post with given ID as not hidden."""
-    click.echo("Unhide a post")
+    set_post_hidden(id_, False)
+    rebuild()
 
 
 @click.command()
@@ -487,10 +495,7 @@ def rm(id_):
 
 @click.command()
 def rebuild():
-    """Rebuild all posts and tags.
-
-    This can be used to recreate
-    the blog from e.g. a database backup if something's gone wrong."""
+    """Rebuild all posts, tags and indexes."""
     writeposts()
     makeindex()
     makefullidx()
