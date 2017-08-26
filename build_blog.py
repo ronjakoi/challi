@@ -1,32 +1,15 @@
 #!/usr/bin/env python3
 
 import sqlite3, locale, re, click
+import configparser
 from os import makedirs, path
 from markdown import markdown
 from datetime import datetime, timezone
 
 pybb = "pybb.db"
-outdir = "blog"
-index_len = 10
 debug = True
 break_re = r'[*-_]( *[*-_]){2,}'
 config_file = "config.ini"
-
-locale.setlocale(locale.LC_ALL, 'fi_FI.utf8')
-
-header = \
-    ("<!doctype html>\n"
-     "<html>\n"
-     "<head>\n"
-     "    <meta charset=\"utf-8\" />\n"
-     "    <title>This is a blog</title>\n"
-     "</head>\n"
-     "<body>\n")
-
-footer = "\n</body></html>"
-
-dateformat = "%-d. %Bta %Y"
-
 
 def geturi(filename, pd):
     """
@@ -78,8 +61,8 @@ def split_input(post_text):
     for i, line in enumerate(post_text.splitlines()):
         if i == 0:
             title = line.strip()
-        elif line.startswith("Luokat: "):
-            tags = line.strip().replace("Luokat: ", "", 1).split(", ")
+        elif line.startswith("{}: "):
+            tags = line.strip().replace("{} ".format(tags_text), "", 1).split(", ")
         else:
             body += line + "\n"
     return title, body, tags
@@ -89,7 +72,9 @@ def makeindex():
     """Make the main index.html"""
 
     makedirs(outdir, exist_ok=True)
-    idxf = open(outdir + "/index.html", 'w+', encoding="utf-8")
+    idxf = open(path.join(outdir,
+                config.get("files", "index_file", fallback="index.html")),
+                'w+', encoding="utf-8")
 
     idxf.write(header)
     cur.execute("SELECT post_id, title, publish_date, filename, content "
@@ -107,9 +92,10 @@ def makeindex():
                                title=row["title"],
                                summary=summary))
             if is_summary:
-                idxf.write("<p><a href=\"{}\">Read more...</a></p>\n"
-                           .format(outfile))
-            idxf.write("<p>Luokat: {}</p>\n".format(gettagsline(row["post_id"])))
+                idxf.write("<p><a href=\"{}\">{}</a></p>\n"
+                           .format(outfile,
+                                   config.get("template", "read_more", fallback="Read more...")))
+            idxf.write("<p>{} {}</p>\n".format(tags_text, gettagsline(row["post_id"])))
     idxf.write(footer)
     idxf.close()
 
@@ -130,8 +116,9 @@ def writeposts():
                 f.write(header)
                 f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
                 f.write(markdown(row["content"]))
-                f.write("<p>Luokat: {}</p>\n".
-                        format(gettagsline(row["post_id"], "../../")))
+                f.write("<p>{} {}</p>\n".
+                        format(config.get("template", "tags_line_header", fallback="Tags:"),
+                        gettagsline(row["post_id"], "../../")))
                 f.write(footer)
 
 
@@ -139,29 +126,29 @@ def makefullidx():
     """Make an index page listing all posts"""
 
     makedirs(outdir, exist_ok=True)
-    f = open(outdir + "/all_posts.html", 'w', encoding="utf-8")
+    archive_index = config.get("files", "archive_index", fallback="all_posts.html")
+    f = open(path.join(outdir, archive_index),
+             'w', encoding="utf-8")
     f.write(header)
     prevmonth = None
     cur.execute("SELECT title, publish_date, filename "
                 "FROM posts ORDER BY publish_date DESC")
 
-    with click.progressbar(cur, label="Making all_posts.html", width=0) as posts:
+    with click.progressbar(cur, label="Making %s" % archive_index, width=0) as posts:
         for row in posts:
             pd = datetime.strptime(row["publish_date"], "%Y-%m-%d %H:%M:%S")
             thismonth = (pd.year, pd.month)
-            # if prevmonth is None: f.write("<ul>\n");
             if thismonth != prevmonth:
                 if prevmonth is not None:
                     f.write("</ul>\n")
                 f.write("<h2>" + pubdate2str(row["publish_date"], "%B %Y") + "</h2>\n<ul>")
             f.write("<li><a href=\"%s\">%s</a> &mdash; %s</li>" %
                     (geturi(row["filename"], row["publish_date"]),
-                     row["title"], pubdate2str(row["publish_date"], dateformat)
-                     )
+                     row["title"],
+                     pubdate2str(row["publish_date"], dateformat))
                     )
             prevmonth = thismonth
-    f.write("</ul>")
-    f.write(footer)
+    f.write("</ul>" + footer)
     f.close()
 
 
@@ -169,7 +156,8 @@ def maketagindex():
     """Make alphabetical list of all tags"""
 
     makedirs(outdir, exist_ok=True)
-    f = open(outdir + "/all_tags.html", 'w', encoding="utf-8")
+    tag_index = config.get("files", "tags_index", fallback="all_tags.html")
+    f = open(path.join(outdir, tag_index), 'w', encoding="utf-8")
     f.write(header)
     f.write("<ul>")
     cur.execute("SELECT text, COUNT(tags_ref.tag_id) as count "
@@ -181,6 +169,7 @@ def maketagindex():
             f.write("<li><a href=\"tag/%s.html\">%s</a>"
                     " &mdash; %d posts" % (row["text"], row["text"], row["count"]))
     f.write("</ul>")
+    f.close()
 
 
 def maketagpages():
@@ -197,7 +186,7 @@ def maketagpages():
                 "WHERE tags_ref.post_id = posts.post_id "
                 "AND tags_ref.tag_id = tags.tag_id "
                 "ORDER BY tags.text ASC, posts.publish_date DESC")
-    with click.progressbar(cur, label="Making tag_*.html", width=0) as tags:
+    with click.progressbar(cur, label="Making tag/*.html", width=0) as tags:
         for row in tags:
             tagpath = path.join(tagdir, row["tag"] + ".html")
             if tagpath not in tagfiles.keys():
@@ -241,10 +230,8 @@ def db_tagpost(tags, post_id):
 
 
 def db_rm_orphan_tags():
-    cur.execute("""DELETE FROM tags
-    WHERE NOT EXISTS(
-        SELECT 1 FROM tags_ref WHERE tags_ref.tag_id = tags.tag_id)
-    """)
+    cur.execute("DELETE FROM tags"
+                "WHERE NOT EXISTS(SELECT 1 FROM tags_ref WHERE tags_ref.tag_id = tags.tag_id)")
 
 
 # Click stuff
@@ -374,7 +361,7 @@ def edit(id_):
         raise click.BadParameter("No posts found.", param=id_, param_hint="ID")
 
     cur.execute(tagquery, (id_,))
-    tagsline = "Luokat: "
+    tagsline = "{} ".format(tags_text)
     tagslist = (r[0] for r in cur)
     if tagslist is not None:
         tagsline += ", ".join(tagslist)
@@ -471,12 +458,45 @@ for func in post, list_posts, edit, hide, unhide, publish, rm, rebuild, init:
 # cli.add_command(bb_import)
 
 if __name__ == '__main__':
+    # Setting up Sqlite connection
     conn = sqlite3.connect(pybb)
     conn.row_factory = sqlite3.Row
+
+    # Reading config from INI file
+    config = configparser.ConfigParser()
+    config.read(config_file, encoding="utf-8")
+    locale.setlocale(locale.LC_ALL,
+                     config.get("template", "date_locale", fallback="C"))
+    dateformat = config.get("template", "date_format", fallback="%B %d, %Y")
+    index_len = config.getint("files", "number_of_index_articles", fallback=8)
+    outdir = config.get("files", "blog_dir", fallback=".")
+    tags_text = config.get("template", "tags_line_header", fallback="Tags:")
+    header_file = config.get("files", "header_file", fallback=None)
+    footer_file = config.get("files", "footer_file", fallback=None)
+    if header_file:
+        with open(header_file, "r", encoding="utf-8") as hf:
+            header = hf.read()
+    else:
+        header = \
+            ("<!doctype html>\n"
+             "<html>\n"
+             "<head>\n"
+             "    <meta charset=\"utf-8\" />\n"
+             "    <title>This is a blog</title>\n"
+             "</head>\n"
+             "<body>\n")
+    if footer_file:
+        with open(footer_file, "r", encoding="utf-8") as ff:
+            footer = ff.read()
+    else:
+        footer = "\n</body></html>"
+
     try:
         with conn:
+            # Setting up Sqlite things some more
             cur = conn.cursor()
             cur.execute("PRAGMA foreign_keys=1")
+            # Starting command line interface and parsing commands through Click
             cli()
     except sqlite3.IntegrityError as e:
         click.echo("SQL error: %s" % e)
