@@ -2,7 +2,7 @@
 
 import sqlite3, locale, re, click
 import configparser
-from os import makedirs, path
+from os import makedirs, path, remove
 from markdown import markdown
 from datetime import datetime, timezone
 
@@ -256,7 +256,62 @@ def init(directory):
     """
     if not directory:
         directory = "."
-    click.echo("Initializing a new blog in `%s'" % directory)
+    init_db = path.join(directory, pybb)
+    if path.isfile(init_db):
+        click.Abort("Database file `%s' exists" % init_db)
+
+    click.echo("Initializing empty database in `%s'..." % init_db)
+    init_conn = sqlite3.connect(init_db)
+    init_cur = init_conn.cursor()
+    init_sql = """
+    BEGIN TRANSACTION;
+    -- Relation table: tag <-> post
+    CREATE TABLE `tags_ref` (
+        `tag_ref_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        `tag_id`	INTEGER NOT NULL,
+        `post_id`	INTEGER NOT NULL,
+        FOREIGN KEY(`tag_id`) REFERENCES tags("tag_id") ON DELETE CASCADE,
+        FOREIGN KEY(`post_id`) REFERENCES posts("post_id") ON DELETE CASCADE,
+        CONSTRAINT `tag_post_unique` UNIQUE (`tag_id`, `post_id`)
+    );
+    -- One row for each tag
+    CREATE TABLE `tags` (
+        `tag_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        `text`	TEXT NOT NULL UNIQUE
+    );
+    -- Posts
+    CREATE TABLE "posts" (
+        `post_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        `title`	TEXT NOT NULL,
+        `content`	TEXT,
+        -- ISO-8601 timestamp string, UTC
+        `publish_date`	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `hidden`	INTEGER NOT NULL DEFAULT 1,
+        `filename`	TEXT NOT NULL
+    );
+    -- Authors
+    CREATE TABLE "authors" (
+        `author_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        `name` TEXT NOT NULL,
+        `email` TEXT,
+        `avatar_uri` TEXT,
+        `description` TEXT
+    );
+    -- Relation table: authors <-> posts
+    CREATE TABLE `authors_ref` (
+        `author_ref_id`	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+        `author_id`	INTEGER NOT NULL,
+        `post_id`	INTEGER NOT NULL,
+        FOREIGN KEY(`author_id`) REFERENCES authors("author_id"),
+        FOREIGN KEY(`post_id`) REFERENCES posts("post_id") ON DELETE CASCADE
+    );
+    CREATE INDEX `post_pub_date` ON `posts` (`publish_date` DESC);
+    CREATE INDEX `author_name` ON `authors` (`name` ASC);
+    CREATE UNIQUE INDEX `tag_ref_i` ON `tags_ref`(`tag_id`, `post_id`);
+    COMMIT;
+    """
+
+    init_cur.execute(init_sql)
 
 
 @click.command()
