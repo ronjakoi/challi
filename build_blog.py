@@ -10,6 +10,7 @@ outdir = "blog"
 index_len = 10
 debug = True
 break_re = r'[*-_]( *[*-_]){2,}'
+config_file = "config.ini"
 
 locale.setlocale(locale.LC_ALL, 'fi_FI.utf8')
 
