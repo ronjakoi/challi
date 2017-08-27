@@ -26,25 +26,32 @@ header, footer = "", ""
 
 
 def makeheader() -> str:
-    h = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+    h1 = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="stylesheet" href="main.css" type="text/css" />
-<link rel="stylesheet" href="blog.css" type="text/css" />
-<link rel="stylesheet" href="treefiddy.css" type="text/css" />
-<title>{title}</title>
-</head><body>
-<div id="divbodyholder">
-<div class="headerholder"><div class="header">
-<div id="title">
-<h1 class="nomargin"><a class="ablack" href="{url}">Tree Fiddy</a></h1>
-<div id="description">{description}</div>
-</div></div></div>
-<div id="divbody"><div class="content">"""
-    return h.format(title=blog_conf["blog"]["title"],
-                    url=blog_conf["blog"]["url"],
-                    description=blog_conf["blog"]["description"])
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />"""
+
+    for css in blog_conf["files"]["css_include"].split(","):
+        h1 += "<link rel=\"stylesheet\" href=\"{}\" type=\"text/css\" />".\
+            format(css.strip())
+
+    try:
+        h2 = """<title>{title}</title>
+    </head><body>
+    <div id="divbodyholder">
+    <div class="headerholder"><div class="header">
+    <div id="title">
+    <h1 class="nomargin"><a class="ablack" href="{url}">Tree Fiddy</a></h1>
+    <div id="description">{description}</div>
+    </div></div></div>
+    <div id="divbody"><div class="content">""". \
+            format(title=blog_conf["blog"]["title"],
+                   url=blog_conf["blog"]["url"],
+                   description=blog_conf["blog"]["description"])
+    except KeyError as e:
+        click.echo("Configuration error in section [blog]: %s" % e)
+        exit(1)
+    return h1 + h2
 
 
 def makefooter() -> str:
@@ -60,7 +67,8 @@ def makefooter() -> str:
     return f.format(all_posts=blog_conf["template"]["archive_title"],
                     all_tags=blog_conf["template"]["tags_title"],
                     author_url=blog_conf["author"]["url"],
-                    author_email=blog_conf["author"]["email"])
+                    author_email=blog_conf["author"]["email"],
+                    author_name=blog_conf["author"]["name"])
 
 def geturi(filename: str, pd: str) -> str:
     """Get a post's URI. Arguments are the post's filename and publish_date.
@@ -247,7 +255,7 @@ def maketagpages():
         for row in tags:
             tagpath = path.join(tagdir, row["tag"] + ".html")
             if tagpath not in tagfiles.keys():
-                tagfiles[tagpath] = open(tagpath, 'w')
+                tagfiles[tagpath] = open(tagpath, 'w', encoding="utf-8")
                 tagfiles[tagpath].write(header)
             postpath = "../" + geturi(row["fn"], row["pd"])
             pdstring = pubdate2str(row["pd"], blog_conf["template"]["date_format"])
