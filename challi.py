@@ -4,7 +4,8 @@ import configparser
 import locale
 import re
 import sqlite3
-from os import makedirs, path
+from os import makedirs, path, getuid
+from pwd import getpwuid
 from datetime import datetime, timezone
 from typing import Tuple
 from markdown import markdown
@@ -17,7 +18,8 @@ break_re = r'[*-_]( *[*-_]){2,}'
 """Regular expression used to determine summary breaks in Markdown."""
 
 config_file = "config.ini"
-
+blog_conf = None
+cur = None
 
 def geturi(filename: str, pd: str) -> str:
     """Get a post's URI. Arguments are the post's filename and publish_date.
@@ -253,9 +255,54 @@ def set_post_hidden(id_: int, hidden: bool):
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help']))
 @click.version_option()
-def cli():
+@click.option("--config", "-c", type=click.Path(dir_okay=False,
+                                                readable=True))
+def cli(config):
     """A static blog generator."""
-    pass
+    global config_file
+    if config:
+        config_file = config
+    else:
+        config_file = "config.ini"
+    # Reading config from INI file
+    global blog_conf
+    blog_conf = configparser.ConfigParser()
+    blog_conf.read(config_file, encoding="utf-8")
+    date_locale = blog_conf.get("template", "date_locale", fallback="C")
+    locale.setlocale(locale.LC_ALL, date_locale)
+    dateformat = blog_conf.get("template", "date_format", fallback="%B %d, %Y")
+    index_len = blog_conf.getint("files", "number_of_index_articles", fallback=8)
+    outdir = blog_conf.get("files", "blog_dir", fallback=".")
+    tags_text = blog_conf.get("template", "tags_line_header", fallback="Tags:")
+    header_file = blog_conf.get("files", "header_file", fallback=None)
+    footer_file = blog_conf.get("files", "footer_file", fallback=None)
+    if header_file:
+        with open(header_file, "r", encoding="utf-8") as hf:
+            header = hf.read()
+    else:
+        header = \
+            ("<!doctype html>\n"
+             "<html>\n"
+             "<head>\n"
+             "    <meta charset=\"utf-8\" />\n"
+             "    <title>This is a blog</title>\n"
+             "</head>\n"
+             "<body>\n")
+    if footer_file:
+        with open(footer_file, "r", encoding="utf-8") as ff:
+            footer = ff.read()
+    else:
+        footer = "\n</body></html>"
+
+    try:
+        # Setting up Sqlite connection
+        with sqlite3.connect(db_file) as conn:
+            global cur
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("PRAGMA foreign_keys=1")
+    except sqlite3.IntegrityError as e:
+        click.echo("SQL error: %s" % e)
 
 
 @click.command()
@@ -470,7 +517,14 @@ def upload():
 
     Copies the blog to the configured
     location using rsync."""
-    click.echo("Publish a post")
+    if len(blog_conf["files"]["rsync_user"]) == 0:
+        blog_conf["files"]["rsync_user"] = getpwuid(getuid()).pw_name
+    if len(blog_conf["files"]["rsync_dest"]) == 0:
+        raise click.UsageError("No 'rsync_dest' specified in config!")
+    try:
+        system(blog_conf["files"]["rsync_command"])
+    except Exception as e:
+        raise click.Abort("Error uploading blog:\n%s" % e)
 
 
 @click.command()
@@ -528,42 +582,4 @@ for func in post, list_posts, edit, hide, unhide, upload, rm, rebuild, init:
 # cli.add_command(bb_import)
 
 if __name__ == '__main__':
-    # Reading config from INI file
-    config = configparser.ConfigParser()
-    config.read(config_file, encoding="utf-8")
-    locale.setlocale(locale.LC_ALL,
-                     config.get("template", "date_locale", fallback="C"))
-    dateformat = config.get("template", "date_format", fallback="%B %d, %Y")
-    index_len = config.getint("files", "number_of_index_articles", fallback=8)
-    outdir = config.get("files", "blog_dir", fallback=".")
-    tags_text = config.get("template", "tags_line_header", fallback="Tags:")
-    header_file = config.get("files", "header_file", fallback=None)
-    footer_file = config.get("files", "footer_file", fallback=None)
-    if header_file:
-        with open(header_file, "r", encoding="utf-8") as hf:
-            header = hf.read()
-    else:
-        header = \
-            ("<!doctype html>\n"
-             "<html>\n"
-             "<head>\n"
-             "    <meta charset=\"utf-8\" />\n"
-             "    <title>This is a blog</title>\n"
-             "</head>\n"
-             "<body>\n")
-    if footer_file:
-        with open(footer_file, "r", encoding="utf-8") as ff:
-            footer = ff.read()
-    else:
-        footer = "\n</body></html>"
-
-    try:
-        # Setting up Sqlite connection
-        with sqlite3.connect(db_file) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            cur.execute("PRAGMA foreign_keys=1")
-            # Starting command line interface and parsing commands through Click
-            cli()
-    except sqlite3.IntegrityError as e:
-        click.echo("SQL error: %s" % e)
+    cli()
