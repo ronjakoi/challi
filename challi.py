@@ -285,9 +285,8 @@ def cli(config):
     blog_conf.read(config_file, encoding="utf-8")
     date_locale = blog_conf.get("template", "date_locale", fallback="C")
     locale.setlocale(locale.LC_ALL, date_locale)
-    blog_conf["template"]["date_format"] = blog_conf.get("template",
-                                                         "date_format",
-                                                         fallback="%B %d, %Y")
+    blog_conf["template"]["date_format"] = \
+        blog_conf.get("template", "date_format", raw=True, fallback="%B %d, %Y")
     global index_len
     index_len = blog_conf.getint("files", "number_of_index_articles", fallback=8)
     blog_conf["files"]["blog_dir"] = blog_conf.get("files", "blog_dir", fallback=".")
@@ -315,17 +314,18 @@ def cli(config):
     else:
         footer = "\n</body></html>"
 
-    try:
-        # Setting up Sqlite connection
-        global conn
-        conn = sqlite3.connect(db_file)
-        global cur
+    if path.isfile(db_file):
+        try:
+            # Setting up Sqlite connection
+            global conn
+            conn = sqlite3.connect(db_file)
+            global cur
 
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("PRAGMA foreign_keys=1")
-    except sqlite3.IntegrityError as e:
-        click.echo("SQL error: %s" % e)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("PRAGMA foreign_keys=1")
+        except sqlite3.IntegrityError as e:
+            click.echo("SQL error: %s" % e)
 
 
 @click.command()
@@ -342,9 +342,10 @@ def init(directory):
         directory = "."
     init_db = path.join(directory, db_file)
     if path.isfile(init_db):
-        raise click.Abort("Database file `%s' exists" % init_db)
+        click.echo("Database file `%s' exists" % init_db)
+        exit(1)
 
-    click.echo("Initializing empty database in `%s'..." % init_db)
+    click.echo("Initializing empty database in `%s' ..." % init_db)
     init_conn = sqlite3.connect(init_db)
     init_cur = init_conn.cursor()
     init_sql = """
@@ -395,7 +396,7 @@ def init(directory):
     COMMIT;
     """
 
-    init_cur.execute(init_sql)
+    init_cur.executescript(init_sql)
     init_conn.commit()
     init_conn.close()
 
