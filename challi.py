@@ -58,7 +58,6 @@ def getsummary(content: str) -> Tuple:
 def gettagsline(post_id: int, prefix: str = "") -> str:
     """Get the tags for a post by id"""
 
-    global conn
     cur_inner = conn.cursor()
     cur_inner.execute("SELECT tags.text AS tag FROM tags, posts, tags_ref "
                       "WHERE tags.tag_id = tags_ref.tag_id AND "
@@ -260,7 +259,6 @@ def db_rm_orphan_tags():
 
 def set_post_hidden(id_: int, hidden: bool):
     """Set the hidden status of a post."""
-    global conn
     cur.execute("UPDATE posts SET hidden = ? WHERE id = ?", (hidden, id_))
     conn.commit()
 
@@ -515,7 +513,6 @@ def edit(id_):
     if new_content is not None:
         title, body, tags = split_input(new_content)
         cur.execute(updatequery, (title, body, id_))
-        global conn
         conn.commit()
         db_tagpost(tags, id_)
         rebuild()
@@ -581,7 +578,6 @@ def rm(id_):
         except OSError:
             pass
         cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
-        global conn
         conn.commit()
         click.echo("Deleted post with id {}".format(id_))
         rebuild()
