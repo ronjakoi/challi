@@ -25,6 +25,43 @@ index_len = None
 header, footer = "", ""
 
 
+def makeheader() -> str:
+    h = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="stylesheet" href="treefiddy.css" type="text/css" />
+<title>{title}</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="{url}">Tree Fiddy</a></h1>
+<div id="description">{description}</div>
+</div></div></div>
+<div id="divbody"><div class="content">"""
+    return h.format(title=blog_conf["blog"]["title"],
+                    url=blog_conf["blog"]["url"],
+                    description=blog_conf["blog"]["description"])
+
+
+def makefooter() -> str:
+    f = """<div id="all_posts">
+    <a href="all_posts.html">{all_posts}</a> &mdash;
+    <a href="all_tags.html">{all_tags}</a> &mdash;
+    </div>
+    <div id="footer">&copy; <a href="{author_url}">{author_name}</a> &mdash;
+    <a href="mailto:{author_email}">{author_email}</a><br/>
+    </div>
+    </div></div>
+    </body></html>"""
+    return f.format(all_posts=blog_conf["template"]["archive_title"],
+                    all_tags=blog_conf["template"]["tags_title"],
+                    author_url=blog_conf["author"]["url"],
+                    author_email=blog_conf["author"]["email"])
+
 def geturi(filename: str, pd: str) -> str:
     """Get a post's URI. Arguments are the post's filename and publish_date.
 
@@ -298,19 +335,12 @@ def cli(config):
         with open(header_file, "r", encoding="utf-8") as hf:
             header = hf.read()
     else:
-        header = \
-            ("<!doctype html>\n"
-             "<html>\n"
-             "<head>\n"
-             "    <meta charset=\"utf-8\" />\n"
-             "    <title>This is a blog</title>\n"
-             "</head>\n"
-             "<body>\n")
+        header = makeheader()
     if footer_file:
         with open(footer_file, "r", encoding="utf-8") as ff:
             footer = ff.read()
     else:
-        footer = "\n</body></html>"
+        footer = makefooter()
 
     if path.isfile(db_file):
         try:
