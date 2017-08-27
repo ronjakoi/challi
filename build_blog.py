@@ -6,35 +6,36 @@ import re
 import sqlite3
 from os import makedirs, path
 from datetime import datetime, timezone
+from typing import Tuple
 from markdown import markdown
 import click
 
 pybb = "pybb.db"
-debug = True
+"""Sqlite3 database file."""
+
 break_re = r'[*-_]( *[*-_]){2,}'
+"""Regular expression used to determine summary breaks in Markdown."""
+
 config_file = "config.ini"
 
 
-def geturi(filename, pd):
-    """
-    Get a post's URI. Arguments are the post's filename and publish_date.
-    This URI is for linking from other pages in the blog.
-    """
+def geturi(filename: str, pd: str) -> str:
+    """Get a post's URI. Arguments are the post's filename and publish_date.
+
+    This URI is for linking from other pages in the blog."""
 
     return pd[0:4] + "/" + pd[5:7] + "/" + filename
 
 
-def pubdate2str(pubdate, formatstr):
+def pubdate2str(pubdate, formatstr: str) -> str:
     pd = datetime.strptime(pubdate, "%Y-%m-%d %H:%M:%S")
     return pd.strftime(formatstr)
 
 
-def getsummary(content):
-    """
-    Get everything from post content up to the break.
-    If there is no break, return the whole thing.
-    Return string is HTML.
-    """
+def getsummary(content: str) -> Tuple:
+    """Get everything from post content up to the break, returning a boolean and an HTML string.
+
+    If there is no break, return the whole thing."""
 
     p = re.compile(break_re)
     is_summary = False
@@ -48,7 +49,7 @@ def getsummary(content):
     return is_summary, markdown(ret)
 
 
-def gettagsline(post_id, prefix=""):
+def gettagsline(post_id: int, prefix: str = "") -> str:
     """Get the tags for a post by id"""
 
     cur_inner = conn.cursor()
@@ -60,7 +61,7 @@ def gettagsline(post_id, prefix=""):
                      format(tag=r[0], prefix=prefix) for r in cur_inner)
 
 
-def split_input(post_text):
+def split_input(post_text: str) -> Tuple:
     body = ""
     for i, line in enumerate(post_text.splitlines()):
         if i == 0:
@@ -127,7 +128,7 @@ def writeposts():
 
 
 def makefullidx():
-    """Make an index page listing all posts"""
+    """Make an index page listing all posts."""
 
     makedirs(outdir, exist_ok=True)
     archive_index = config.get("files", "archive_index", fallback="all_posts.html")
@@ -157,7 +158,7 @@ def makefullidx():
 
 
 def maketagindex():
-    """Make alphabetical list of all tags"""
+    """Make alphabetical list of all tags."""
 
     makedirs(outdir, exist_ok=True)
     tag_index = config.get("files", "tags_index", fallback="all_tags.html")
@@ -177,7 +178,7 @@ def maketagindex():
 
 
 def maketagpages():
-    """Make a page for each tag"""
+    """Make a page for each tag."""
 
     tagdir = path.join(outdir, "tag")
     makedirs(tagdir, exist_ok=True)
@@ -216,7 +217,8 @@ def maketagpages():
         f.close()
 
 
-def db_tagpost(tags, post_id):
+def db_tagpost(tags: list, post_id: int):
+    """Make DB tag entries for a post."""
     # Delete all tag-post relations for this post. Needed for updates.
     cur.execute("DELETE FROM tags_ref WHERE post_id = ?", (post_id,))
     for tag in tags:
@@ -234,11 +236,12 @@ def db_tagpost(tags, post_id):
 
 
 def db_rm_orphan_tags():
+    """Delete orphan tags, i.e. ones not referenced by any post."""
     cur.execute("DELETE FROM tags"
                 "WHERE NOT EXISTS(SELECT 1 FROM tags_ref WHERE tags_ref.tag_id = tags.tag_id)")
 
 
-def set_post_hidden(id_, hidden):
+def set_post_hidden(id_: int, hidden: bool):
     """Set the hidden status of a post."""
     cur.execute("UPDATE posts SET hidden = ? WHERE id = ?", (hidden, id_))
     conn.commit()
@@ -263,8 +266,7 @@ def init(directory):
 
     This creates an empty database file.
     By default the current working directory is used,
-    but you can optionally provide a different one.
-    """
+    but you can optionally provide a different one."""
     if not directory:
         directory = "."
     init_db = path.join(directory, pybb)
