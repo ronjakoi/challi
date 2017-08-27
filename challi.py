@@ -57,18 +57,23 @@ def makeheader() -> str:
 def makefooter() -> str:
     f = """<div id="all_posts">
     <a href="all_posts.html">{all_posts}</a> &mdash;
-    <a href="all_tags.html">{all_tags}</a> &mdash;
+    <a href="all_tags.html">{all_tags}</a>
     </div>
     <div id="footer">&copy; <a href="{author_url}">{author_name}</a> &mdash;
     <a href="mailto:{author_email}">{author_email}</a><br/>
     </div>
     </div></div>
     </body></html>"""
-    return f.format(all_posts=blog_conf["template"]["archive_title"],
-                    all_tags=blog_conf["template"]["tags_title"],
-                    author_url=blog_conf["author"]["url"],
-                    author_email=blog_conf["author"]["email"],
-                    author_name=blog_conf["author"]["name"])
+    try:
+        return f.format(all_posts=blog_conf["template"]["archive_title"],
+                        all_tags=blog_conf["template"]["tags_title"],
+                        author_url=blog_conf["author"]["url"],
+                        author_email=blog_conf["author"]["email"],
+                        author_name=blog_conf["author"]["name"])
+    except KeyError as e:
+        click.echo("Configuration error: %s" % e)
+        exit(1)
+
 
 def geturi(filename: str, pd: str) -> str:
     """Get a post's URI. Arguments are the post's filename and publish_date.
@@ -325,7 +330,10 @@ def cli(config):
     # Reading config from INI file
     global blog_conf
     blog_conf = configparser.ConfigParser()
-    blog_conf.read(config_file, encoding="utf-8")
+    try:
+        blog_conf.read(config_file, encoding="utf-8")
+    except:
+        raise click.UsageError("Cannot read config file '%s'!" % config_file)
     date_locale = blog_conf.get("template", "date_locale", fallback="C")
     locale.setlocale(locale.LC_ALL, date_locale)
     blog_conf["template"]["date_format"] = \
