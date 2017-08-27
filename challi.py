@@ -4,7 +4,7 @@ import configparser
 import locale
 import re
 import sqlite3
-from os import makedirs, path, getuid
+from os import makedirs, path, getuid, system
 from pwd import getpwuid
 from datetime import datetime, timezone
 from typing import Tuple
@@ -544,9 +544,9 @@ def upload():
 
     Copies the blog to the configured
     location using rsync."""
-    if len(blog_conf["files"]["rsync_user"]) == 0:
+    if blog_conf["files"]["rsync_user"] == "":
         blog_conf["files"]["rsync_user"] = getpwuid(getuid()).pw_name
-    if len(blog_conf["files"]["rsync_dest"]) == 0:
+    if blog_conf["files"]["rsync_dest"] == "":
         raise click.UsageError("No 'rsync_dest' specified in config!")
     try:
         system(blog_conf["files"]["rsync_command"])
@@ -566,7 +566,8 @@ def rm(id_):
     import os
 
     try:
-        pd, fn = next(cur.execute("SELECT publish_date, filename FROM posts WHERE post_id = ?", (id_,)))
+        pd, fn = next(cur.execute(
+            "SELECT publish_date, filename FROM posts WHERE post_id = ?", (id_,)))
     except:
         raise click.BadParameter("No posts found.", param=id_, param_hint="ID")
     else:
@@ -595,20 +596,9 @@ def rebuild():
     maketagindex()
 
 
-@click.command()
-@click.argument('file', nargs=-1)
-def bb_import(file):
-    """Import posts from Bashblog Markdown files.
-
-    Arguments are a list of Markdown files.
-    """
-    pass
-
-
 for func in post, list_posts, edit, hide, unhide, upload, rm, rebuild, init:
     cli.add_command(func)
 
-# cli.add_command(bb_import)
 
 if __name__ == '__main__':
     cli()
