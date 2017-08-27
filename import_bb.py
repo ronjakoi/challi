@@ -6,10 +6,10 @@ from datetime import datetime
 
 outdir = 'blog'
 bb_dir = 'bb'
-pybb = 'pybb.db'
+db_file = 'challi.db'
 
 # Open database connection
-conn = sqlite3.connect(pybb)
+conn = sqlite3.connect(db_file)
 cur = conn.cursor()
 cur.execute("PRAGMA foreign_keys=1")
 
@@ -21,37 +21,37 @@ for top, dirs, files in os.walk(bb_dir):
     if os.path.splitext(name)[1] in (".md", ".MD", "*.markdown"):
       # Get each file's last modified timestamp
       mtime = os.stat(os.path.join(top, name)).st_mtime
-      pybb_post_date = datetime.utcfromtimestamp(mtime). \
+      challi_post_date = datetime.utcfromtimestamp(mtime). \
                        strftime("%Y-%m-%d %H:%M:%S")
       # Get each filename without extension
-      pybb_post_filename = os.path.splitext(name)[0] + ".html"
+      challi_post_filename = os.path.splitext(name)[0] + ".html"
       # Open each file read-only
       with open(os.path.join(top, name), 'r', encoding="utf-8") as f:
-        pybb_post_content = ""
+        challi_post_content = ""
         for i, line in enumerate(f):
           # The first line always contains the post title with no markup
           if i == 0:
-            pybb_post_title = line.strip()
+            challi_post_title = line.strip()
           # There is one line specially prefixed containing a comma separated
           # list of tags.
           elif line.startswith( "Luokat: " ):
-            pybb_post_tags = line.strip().replace("Luokat: ", "", 1).split(", ")
+            challi_post_tags = line.strip().replace("Luokat: ", "", 1).split(", ")
           # All other lines are collected as the post body.
           else:
-            pybb_post_content += line
+            challi_post_content += line
       # Insert the post
       cur.execute("""INSERT INTO `posts` (title, content, publish_date, filename)
                   VALUES (?, ?, ?, ?)""",
-                  (pybb_post_title, pybb_post_content, pybb_post_date, pybb_post_filename)
+                  (challi_post_title, challi_post_content, challi_post_date, challi_post_filename)
                   )
-      post_path_new = '{}/{:02d}/{}'.format(pybb_post_date.year,
-                                    pybb_post_date.month,
-                                    pybb_post_filename)
-      htaccess.write("Redirect /{} /{}\n".format(pybb_post_filename, post_path_new))
+      post_path_new = '{}/{:02d}/{}'.format(challi_post_date.year,
+                                    challi_post_date.month,
+                                    challi_post_filename)
+      htaccess.write("Redirect /{} /{}\n".format(challi_post_filename, post_path_new))
       # Take note of what autoincremented id we got
       post_id = cur.lastrowid
 
-      for tag in pybb_post_tags:
+      for tag in challi_post_tags:
         # Check if a tag with this text already exists
         cur.execute("SELECT tag_id FROM tags WHERE text = ?", (tag,))
         try:

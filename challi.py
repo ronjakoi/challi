@@ -10,7 +10,7 @@ from typing import Tuple
 from markdown import markdown
 import click
 
-pybb = "pybb.db"
+db_file = "challi.db"
 """Sqlite3 database file."""
 
 break_re = r'[*-_]( *[*-_]){2,}'
@@ -172,7 +172,8 @@ def maketagindex():
     with click.progressbar(cur, label="Making all_tags.html", width=0) as tags:
         for row in tags:
             f.write("<li><a href=\"tag/%s.html\">%s</a>"
-                    " &mdash; %d posts" % (row["text"], row["text"], row["count"]))
+                    " &mdash; %d %s" % (row["text"], row["text"], row["count"],
+                                        config.get("template", "tags_posts", fallback="posts")))
     f.write("</ul>")
     f.close()
 
@@ -269,7 +270,7 @@ def init(directory):
     but you can optionally provide a different one."""
     if not directory:
         directory = "."
-    init_db = path.join(directory, pybb)
+    init_db = path.join(directory, db_file)
     if path.isfile(init_db):
         raise click.Abort("Database file `%s' exists" % init_db)
 
@@ -464,7 +465,7 @@ def unhide(id_):
 
 
 @click.command()
-def publish():
+def upload():
     """Upload the blog.
 
     Copies the blog to the configured
@@ -521,16 +522,12 @@ def bb_import(file):
     """
     pass
 
-for func in post, list_posts, edit, hide, unhide, publish, rm, rebuild, init:
+for func in post, list_posts, edit, hide, unhide, upload, rm, rebuild, init:
     cli.add_command(func)
 
 # cli.add_command(bb_import)
 
 if __name__ == '__main__':
-    # Setting up Sqlite connection
-    conn = sqlite3.connect(pybb)
-    conn.row_factory = sqlite3.Row
-
     # Reading config from INI file
     config = configparser.ConfigParser()
     config.read(config_file, encoding="utf-8")
@@ -561,8 +558,9 @@ if __name__ == '__main__':
         footer = "\n</body></html>"
 
     try:
-        with conn:
-            # Setting up Sqlite things some more
+        # Setting up Sqlite connection
+        with sqlite3.connect(db_file) as conn:
+            conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             cur.execute("PRAGMA foreign_keys=1")
             # Starting command line interface and parsing commands through Click
