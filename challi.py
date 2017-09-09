@@ -65,8 +65,7 @@ def makeheader() -> str:
         h1 += "<link rel=\"stylesheet\" href=\"{}\" type=\"text/css\" />".\
             format(css.strip())
 
-    try:
-        h2 = """<title>{title}</title>
+    h2 = """<title>{title}</title>
     </head><body>
     <div id="divbodyholder">
     <div class="headerholder"><div class="header">
@@ -75,12 +74,10 @@ def makeheader() -> str:
     <div id="description">{description}</div>
     </div></div></div>
     <div id="divbody"><div class="content">""". \
-            format(title=blog_conf["blog"]["title"],
-                   url=blog_conf["blog"]["url"],
-                   description=blog_conf["blog"]["description"])
-    except KeyError as e:
-        click.echo("Configuration error in section [blog]: %s" % e)
-        exit(1)
+        format(title=blog_conf["blog"]["title"],
+               url=blog_conf["blog"]["url"],
+               description=blog_conf["blog"]["description"])
+
     return h1 + h2
 
 
@@ -357,49 +354,66 @@ def cli(config):
         config_file = config
     else:
         config_file = "config.ini"
-    # Reading config from INI file
-    global blog_conf
-    blog_conf = configparser.ConfigParser()
-    try:
+
+    if path.isfile(config_file):
+        # Reading config from INI file
+        global blog_conf
+        blog_conf = configparser.ConfigParser()
         blog_conf.read(config_file, encoding="utf-8")
-    except:
-        raise click.UsageError("Cannot read config file '%s'!" % config_file)
-    date_locale = blog_conf.get("template", "date_locale", fallback="C")
-    locale.setlocale(locale.LC_ALL, date_locale)
-    blog_conf["template"]["date_format"] = \
-        blog_conf.get("template", "date_format", raw=True, fallback="%B %d, %Y")
-    global index_len
-    index_len = blog_conf.getint("files", "number_of_index_articles", fallback=8)
-    blog_conf["files"]["blog_dir"] = blog_conf.get("files", "blog_dir", fallback=".")
-    blog_conf["template"]["tags_line_header"] = blog_conf.get("template",
-                                                              "tags_line_header",
-                                                              fallback="Tags:")
-    header_file = blog_conf.get("files", "header_file", fallback=None)
-    footer_file = blog_conf.get("files", "footer_file", fallback=None)
-    global header, footer
-    if header_file:
-        with open(header_file, "r", encoding="utf-8") as hf:
-            header = hf.read()
-    else:
-        header = makeheader()
-    if footer_file:
-        with open(footer_file, "r", encoding="utf-8") as ff:
-            footer = ff.read()
-    else:
-        footer = makefooter()
+        date_locale = blog_conf.get("template", "date_locale", fallback="C")
+        locale.setlocale(locale.LC_ALL, date_locale)
+        blog_conf["template"] = {"date_format":
+            blog_conf.get("template", "date_format", raw=True, fallback="%%B %%d, %%Y") }
+        global index_len
+        index_len = blog_conf.getint("files", "number_of_index_articles", fallback=8)
 
-    if path.isfile(db_file):
-        try:
-            # Setting up Sqlite connection
-            global conn
-            conn = sqlite3.connect(db_file)
-            global cur
+        blog_conf["files"] = {"blog_dir": blog_conf.get("files", "blog_dir", fallback=".")}
+        blog_conf["files"]["css_include"] = blog_conf.get("files", "css_include", fallback="")
 
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            cur.execute("PRAGMA foreign_keys=1")
-        except sqlite3.IntegrityError as e:
-            click.echo("SQL error: %s" % e)
+        blog_conf["template"]["tags_line_header"] = blog_conf.get("template",
+                                                                  "tags_line_header",
+                                                                  fallback="Tags:")
+        blog_conf["template"]["archive_title"] = \
+            blog_conf.get("template", "archive_title", fallback="All posts")
+        blog_conf["template"]["tags_title"] = \
+            blog_conf.get("template", "tags_title", fallback="All tags")
+
+        blog_conf["author"] = {"url": blog_conf.get("author", "url", fallback="http://www.example.com/")}
+        blog_conf["author"]["email"] = blog_conf.get("author", "email", fallback="nobody@example.com")
+        blog_conf["author"]["name"] = blog_conf.get("author", "name", fallback="nobody")
+
+        header_file = blog_conf.get("files", "header_file", fallback=None)
+        footer_file = blog_conf.get("files", "footer_file", fallback=None)
+
+        blog_conf["blog"] = {"title": blog_conf.get("blog", "title", fallback="Blog")}
+        blog_conf["blog"]["url"] = blog_conf.get("blog", "url", fallback="")
+        blog_conf["blog"]["description"] = \
+            blog_conf.get("blog", "description", fallback="Blog description")
+
+        global header, footer
+        if header_file:
+            with open(header_file, "r", encoding="utf-8") as hf:
+                header = hf.read()
+        else:
+            header = makeheader()
+        if footer_file:
+            with open(footer_file, "r", encoding="utf-8") as ff:
+                footer = ff.read()
+        else:
+            footer = makefooter()
+
+        if path.isfile(db_file):
+            try:
+                # Setting up Sqlite connection
+                global conn
+                conn = sqlite3.connect(db_file)
+                global cur
+
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("PRAGMA foreign_keys=1")
+            except sqlite3.IntegrityError as e:
+                click.echo("SQL error: %s" % e)
 
 
 @click.command()
@@ -414,9 +428,12 @@ def init(directory):
     but you can optionally provide a different one."""
     if not directory:
         directory = "."
+    else:
+        makedirs(directory, exist_ok=True)
+
     init_db = path.join(directory, db_file)
     if path.isfile(init_db):
-        click.echo("Database file `%s' exists" % init_db)
+        click.echo("Error: Database file `%s' exists" % init_db)
         exit(1)
 
     click.echo("Initializing empty database in `%s' ..." % init_db)
@@ -473,6 +490,122 @@ def init(directory):
     init_cur.executescript(init_sql)
     init_conn.commit()
     init_conn.close()
+
+    default_config = """
+[software]
+name=Challi
+version=0.1
+
+[blog]
+# Blog title
+title=My Blog
+
+# The typical subtitle for each blog
+description=My blog is awesome.
+
+# The public base URL for this blog
+url=http://www.example.com
+
+# CC by-nc-nd is a good starting point, you can change this to "&copy;" for Copyright
+license=&copy;
+
+[author]
+# Your name
+name=Author
+# You can use twitter or facebook or anything for this
+url=http://www.example.com/
+# Your email
+email=author@example.com
+
+[services]
+# If you have a Google Analytics ID (UA-XXXXX) and wish to use the standard
+# embedding code, put it on global_analytics
+# If you have custom analytics code (i.e. non-google) or want to use the Universal
+# code, leave global_analytics empty and specify a global_analytics_file
+# analytics=
+# analytics_file=
+
+# Leave this empty (i.e. "") if you don't want to use feedburner,
+# or change it to your own URL
+# feedburner=
+
+# Change this to your username if you want to use twitter for comments
+# twitter_username=
+
+# Change this to your disqus username to use disqus for comments
+# disqus_username=
+
+[files]
+# Blog generated files
+# index page of blog (it is usually good to use "index.html" here)
+index_file=index.html
+number_of_index_articles=8
+# Blog output directory (where index_file and subdirectories go)
+blog_dir=blog
+# global archive
+archive_index=all_posts.html
+tags_index=all_tags.html
+# feed file (rss in this case)
+blog_feed=feed.rss
+number_of_feed_articles=10
+
+# personalized header and footer (only if you know what you're doing)
+# header_file=
+# footer_file=
+
+# extra content to add just after we open the <body> tag
+# and before the actual blog content
+# body_begin_file=
+
+# Comma-separated list of CSS files to include on every page, e.g. css_include=main.css,blog.css
+# leave empty to use generated
+css_include=blog.css
+
+# Where to upload the blog? Settings for rsync
+# rsync_dest=example.com:/var/www/html/blog
+# rsync_user=
+
+# How to invoke rsync?
+# Make sure you have passwordless SSH key based authentication to the destination!
+rsync_command=rsync -arz --delete --progress %(blog_dir)/* %(rsync_user)@%(rsync_dest)/
+
+[template]
+# Localization and i18n
+# "Comments?" (used in twitter link after every post)
+comments=Comments?
+# "Read more..." (link under cut article on index page)
+read_more=Read more...
+# "View more posts" (used on bottom of index page as link to archive)
+archive=All posts
+# "All posts" (title of archive page)
+archive_title=All posts
+# "All tags
+tags_title=All tags
+# "posts" (on "All tags" page, text at the end of each tag line, like "2. Music - 15 posts")
+tags_posts=posts
+# "Posts tagged" (text on a title of a page with index of one tag, like "My Blog - Posts tagged "Music"")
+tag_title=Posts tagged
+# "Tags:" (beginning of line in HTML file with list of all tags for this article)
+tags_line_header=Tags:
+# "Back to the index page" (used on archive page, it is link to blog index)
+archive_index_page=Back to the index page
+# "Subscribe" (used on bottom of index page, it is link to RSS feed)
+subscribe=Subscribe
+# "Subscribe to this page..." (used as text for browser feed button that is embedded to html)
+subscribe_browser_button=Subscribe to this page...
+# "Tweet" (used as twitter text button for posting to twitter)
+twitter_button=Tweet
+twitter_comment=&lt;Type your comment here but please leave the URL so that other people can follow the comments&gt;
+# The locale to use for the dates displayed on screen
+# Please escape % signs by doubling them!
+date_format = %%B %%d, %%Y
+# date_locale=
+"""
+
+    init_config = path.join(directory, config_file)
+    click.echo("Generating default configuration file in `%s' ..." % init_config)
+    with open(init_config, "w", encoding="utf-8") as c:
+        c.write(default_config)
 
 
 @click.command()
