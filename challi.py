@@ -149,7 +149,7 @@ def split_input(post_text: str) -> Tuple:
     for i, line in enumerate(post_text.splitlines()):
         if i == 0:
             title = line.strip()
-        elif line.startswith("{} "):
+        elif line.startswith("{} ".format(blog_conf["template"]["tags_line_header"])):
             tags = line.strip(). \
                 replace("{} ".format(blog_conf["template"]["tags_line_header"]), "", 1). \
                 split(", ")
@@ -616,7 +616,8 @@ date_format = %%B %%d, %%Y
               help="Make this post hidden (a draft).")
 @click.option('--get-from', '-g', type=click.File('r'),
               help="Read post content (and tags) from file (don't open an editor).")
-def post(hidden, get_from):
+@click.pass_context
+def post(ctx, hidden, get_from):
     """Write a new blog post."""
 
     post_template = \
@@ -652,7 +653,7 @@ def post(hidden, get_from):
     post_id = cur.lastrowid
 
     db_tagpost(tags, post_id)
-    rebuild()
+    ctx.invoke(rebuild)
 
 
 @click.command(name="ls")
@@ -798,10 +799,10 @@ def rm(id_):
 @click.command()
 def rebuild():
     """Rebuild all posts, tags and indexes."""
-    blog_css_file = path.join(blog_conf["files"]["blog_dir"], "blog.css")
-    if not path.isfile(blog_css_file):
-        with open(blog_css_file, "w") as css:
-            css.write(default_css)
+    #blog_css_file = path.join(blog_conf["files"]["blog_dir"], "blog.css")
+    #if not path.isfile(blog_css_file):
+    #    with open(blog_css_file, "w") as css:
+    #        css.write(default_css)
     writeposts()
     makeindex()
     makefullidx()
