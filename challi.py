@@ -605,8 +605,10 @@ date_format = %%B %%d, %%Y
 
     init_config = path.join(directory, config_file)
     click.echo("Generating default configuration file in `%s' ..." % init_config)
-    with open(init_config, "w", encoding="utf-8") as c:
-        c.write(default_config)
+
+    if not path.exists(init_config):
+        with open(init_config, "w", encoding="utf-8") as c:
+            c.write(default_config)
 
 
 @click.command()
