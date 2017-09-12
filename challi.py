@@ -149,7 +149,7 @@ def split_input(post_text: str) -> Tuple:
     for i, line in enumerate(post_text.splitlines()):
         if i == 0:
             title = line.strip()
-        elif line.startswith("{}: "):
+        elif line.startswith("{} "):
             tags = line.strip(). \
                 replace("{} ".format(blog_conf["template"]["tags_line_header"]), "", 1). \
                 split(", ")
@@ -362,17 +362,18 @@ def cli(config):
         blog_conf.read(config_file, encoding="utf-8")
         date_locale = blog_conf.get("template", "date_locale", fallback="C")
         locale.setlocale(locale.LC_ALL, date_locale)
-        blog_conf["template"] = {"date_format":
-            blog_conf.get("template", "date_format", raw=True, fallback="%%B %%d, %%Y") }
+        if not "date_format" in blog_conf["template"]:
+            blog_conf["template"]["date_format"] = "%%B %%d, %%Y"
         global index_len
         index_len = blog_conf.getint("files", "number_of_index_articles", fallback=8)
 
-        blog_conf["files"] = {"blog_dir": blog_conf.get("files", "blog_dir", fallback=".")}
-        blog_conf["files"]["css_include"] = blog_conf.get("files", "css_include", fallback="")
+        if not "blog_dir" in blog_conf["files"]:
+            blog_conf["files"]["blog_dir"] = "."
+        if not "css_include" in blog_conf["files"]:
+            blog_conf["files"]["css_include"] = ""
+        if not "tags_line_header" in blog_conf["template"]:
+            blog_conf["template"]["tags_line_header"] = "Tags"
 
-        blog_conf["template"]["tags_line_header"] = blog_conf.get("template",
-                                                                  "tags_line_header",
-                                                                  fallback="Tags:")
         blog_conf["template"]["archive_title"] = \
             blog_conf.get("template", "archive_title", fallback="All posts")
         blog_conf["template"]["tags_title"] = \
