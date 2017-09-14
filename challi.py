@@ -73,10 +73,7 @@ def makeheader() -> str:
     <h1 class="nomargin"><a class="ablack" href="{url}">Tree Fiddy</a></h1>
     <div id="description">{description}</div>
     </div></div></div>
-    <div id="divbody"><div class="content">""". \
-        format(title=blog_conf["blog"]["title"],
-               url=blog_conf["blog"]["url"],
-               description=blog_conf["blog"]["description"])
+    <div id="divbody"><div class="content">"""
 
     return h1 + h2
 
@@ -91,15 +88,7 @@ def makefooter() -> str:
     </div>
     </div></div>
     </body></html>"""
-    try:
-        return f.format(all_posts=blog_conf["template"]["archive_title"],
-                        all_tags=blog_conf["template"]["tags_title"],
-                        author_url=blog_conf["author"]["url"],
-                        author_email=blog_conf["author"]["email"],
-                        author_name=blog_conf["author"]["name"])
-    except KeyError as e:
-        click.echo("Configuration error: %s" % e)
-        exit(1)
+    return f
 
 
 def geturi(filename: str, pd: str) -> str:
@@ -397,12 +386,21 @@ def cli(config):
                 header = hf.read()
         else:
             header = makeheader()
+
+        header = header.format(title=blog_conf["blog"]["title"],
+                               url=blog_conf["blog"]["url"],
+                               description=blog_conf["blog"]["description"],
+                               author=blog_conf["author"]["name"])
         if footer_file:
             with open(footer_file, "r", encoding="utf-8") as ff:
                 footer = ff.read()
         else:
             footer = makefooter()
-
+        footer = footer.format(all_posts=blog_conf["template"]["archive_title"],
+                               all_tags=blog_conf["template"]["tags_title"],
+                               author_url=blog_conf["author"]["url"],
+                               author_email=blog_conf["author"]["email"],
+                               author_name=blog_conf["author"]["name"])
         if path.isfile(db_file):
             try:
                 # Setting up Sqlite connection
@@ -623,7 +621,7 @@ def post(ctx, hidden, get_from):
     post_template = \
         ("This line is your title\n\n"
          "The body of your post goes here.\n\n"
-         "{} comma-separated, list, of, tags").format(blog_conf["template"]["tags_line_header"])
+         "{}: comma-separated, list, of, tags").format(blog_conf["template"]["tags_line_header"])
 
     query = """INSERT INTO posts
             (title, content, publish_date, filename, hidden)
