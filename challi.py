@@ -4,8 +4,8 @@ import configparser
 import locale
 import re
 import sqlite3
-from os import makedirs, path, getuid, system
-from pwd import getpwuid
+from os import makedirs, path, system
+
 from datetime import datetime, timezone
 from typing import Tuple
 from markdown import markdown
@@ -24,37 +24,6 @@ conn = None
 index_len = None
 header, footer = "", ""
 
-default_css = """body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
-        #divbodyholder{padding:5px;background-color:#DDD;width:874px;margin:24px auto;}
-        #divbody{width:776px;border:solid 1px #ccc;background-color:#fff;padding:0px 48px 24px 48px;top:0;}
-        .headerholder{background-color:#f9f9f9;border-top:solid 1px #ccc;border-left:solid 1px #ccc;border-right:solid 1px #ccc;}
-        .header{width:800px;margin:0px auto;padding-top:24px;padding-bottom:8px;}
-        .content{margin-bottom:45px;}
-        .nomargin{margin:0;}
-        .description{margin-top:10px;border-top:solid 1px #666;padding:10px 0;}
-        h3{font-size:20pt;width:100%;font-weight:bold;margin-top:32px;margin-bottom:0;}
-        .clear{clear:both;}
-        #footer{padding-top:10px;border-top:solid 1px #666;color:#333333;text-align:center;font-size:small;font-family:"Courier New","Courier",monospace;}
-        a{text-decoration:none;color:#003366 !important;}
-        a:visited{text-decoration:none;color:#336699 !important;}
-        blockquote{background-color:#f9f9f9;border-left:solid 4px #e9e9e9;margin-left:12px;padding:12px 12px 12px 24px;}
-        blockquote img{margin:12px 0px;}
-        blockquote iframe{margin:12px 0px;}
-
-#title{font-size: x-large;}
-        a.ablack{color:black !important;}
-        li{margin-bottom:8px;}
-        ul,ol{margin-left:24px;margin-right:24px;}
-        #all_posts{margin-top:24px;text-align:center;}
-        .subtitle{font-size:small;margin:12px 0px;}
-        .content p{margin-left:24px;margin-right:24px;}
-        h1{margin-bottom:12px !important;}
-        #description{font-size:large;margin-bottom:12px;}
-        h3{margin-top:42px;margin-bottom:8px;}
-        h4{margin-left:24px;margin-right:24px;}
-        #twitter{line-height:20px;vertical-align:top;text-align:right;font-style:italic;color:#333;margin-top:24px;font-size:14px;}
-"""
-
 def makeheader() -> str:
     h1 = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
@@ -70,7 +39,7 @@ def makeheader() -> str:
     <div id="divbodyholder">
     <div class="headerholder"><div class="header">
     <div id="title">
-    <h1 class="nomargin"><a class="ablack" href="{url}">Tree Fiddy</a></h1>
+    <h1 class="nomargin"><a class="ablack" href="{url}">{title}</a></h1>
     <div id="description">{description}</div>
     </div></div></div>
     <div id="divbody"><div class="content">"""
@@ -368,17 +337,18 @@ def cli(config):
         blog_conf["template"]["tags_title"] = \
             blog_conf.get("template", "tags_title", fallback="All tags")
 
-        blog_conf["author"] = {"url": blog_conf.get("author", "url", fallback="http://www.example.com/")}
-        blog_conf["author"]["email"] = blog_conf.get("author", "email", fallback="nobody@example.com")
-        blog_conf["author"]["name"] = blog_conf.get("author", "name", fallback="nobody")
+        author_conf = {"url": blog_conf.get("author", "url", fallback="http://www.example.com/"),
+                       "email": blog_conf.get("author", "email", fallback="nobody@example.com"),
+                       "name": blog_conf.get("author", "name", fallback="nobody")}
+        blog_conf["author"] = author_conf
 
         header_file = blog_conf.get("files", "header_file", fallback=None)
         footer_file = blog_conf.get("files", "footer_file", fallback=None)
 
-        blog_conf["blog"] = {"title": blog_conf.get("blog", "title", fallback="Blog")}
-        blog_conf["blog"]["url"] = blog_conf.get("blog", "url", fallback="")
-        blog_conf["blog"]["description"] = \
-            blog_conf.get("blog", "description", fallback="Blog description")
+        blog_c = {"title": blog_conf.get("blog", "title", fallback="Blog"),
+                  "url": blog_conf.get("blog", "url", fallback=""),
+                  "description": blog_conf.get("blog", "description", fallback="Blog description")}
+        blog_conf["blog"] = blog_c
 
         global header, footer
         if header_file:
@@ -601,12 +571,48 @@ date_format = %%B %%d, %%Y
 # date_locale=
 """
 
+    default_css = """body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
+#divbodyholder{padding:5px;background-color:#DDD;width:874px;margin:24px auto;}
+#divbody{width:776px;border:solid 1px #ccc;background-color:#fff;padding:0px 48px 24px 48px;top:0;}
+.headerholder{background-color:#f9f9f9;border-top:solid 1px #ccc;border-left:solid 1px #ccc;border-right:solid 1px #ccc;}
+.header{width:800px;margin:0px auto;padding-top:24px;padding-bottom:8px;}
+.content{margin-bottom:45px;}
+.nomargin{margin:0;}
+.description{margin-top:10px;border-top:solid 1px #666;padding:10px 0;}
+h3{font-size:20pt;width:100%;font-weight:bold;margin-top:32px;margin-bottom:0;}
+.clear{clear:both;}
+#footer{padding-top:10px;border-top:solid 1px #666;color:#333333;text-align:center;font-size:small;font-family:"Courier New","Courier",monospace;}
+a{text-decoration:none;color:#003366 !important;}
+a:visited{text-decoration:none;color:#336699 !important;}
+blockquote{background-color:#f9f9f9;border-left:solid 4px #e9e9e9;margin-left:12px;padding:12px 12px 12px 24px;}
+blockquote img{margin:12px 0px;}
+blockquote iframe{margin:12px 0px;}
+
+#title{font-size: x-large;}
+a.ablack{color:black !important;}
+li{margin-bottom:8px;}
+ul,ol{margin-left:24px;margin-right:24px;}
+#all_posts{margin-top:24px;text-align:center;}
+.subtitle{font-size:small;margin:12px 0px;}
+.content p{margin-left:24px;margin-right:24px;}
+h1{margin-bottom:12px !important;}
+#description{font-size:large;margin-bottom:12px;}
+h3{margin-top:42px;margin-bottom:8px;}
+h4{margin-left:24px;margin-right:24px;}
+#twitter{line-height:20px;vertical-align:top;text-align:right;font-style:italic;color:#333;margin-top:24px;font-size:14px;}"""
+
     init_config = path.join(directory, config_file)
     click.echo("Generating default configuration file in `%s' ..." % init_config)
 
     if not path.exists(init_config):
         with open(init_config, "w", encoding="utf-8") as c:
             c.write(default_config)
+    
+    css_file = path.join(directory, "blog.css")
+    if not path.isfile(css_file):
+        click.echo("Generating default CSS file in `%s' ..." % css_file)
+        with open(css_file, "w", encoding="utf-8") as cf:
+            cf.write(default_css)
 
 
 @click.command()
@@ -754,9 +760,13 @@ def upload():
 
     Copies the blog to the configured
     location using rsync."""
-    if blog_conf["files"]["rsync_user"] == "":
+    if not "rsync_user" in blog_conf["files"] \
+      or blog_conf["files"]["rsync_user"] == "":
+        from pwd import getpwuid
+        from os import getuid
         blog_conf["files"]["rsync_user"] = getpwuid(getuid()).pw_name
-    if blog_conf["files"]["rsync_dest"] == "":
+    if not "rsync_dest" in blog_conf["files"] \
+      or blog_conf["files"]["rsync_dest"] == "":
         raise click.UsageError("No 'rsync_dest' specified in config!")
     try:
         system(blog_conf["files"]["rsync_command"])
@@ -798,10 +808,7 @@ def rm(id_):
 @click.command()
 def rebuild():
     """Rebuild all posts, tags and indexes."""
-    #blog_css_file = path.join(blog_conf["files"]["blog_dir"], "blog.css")
-    #if not path.isfile(blog_css_file):
-    #    with open(blog_css_file, "w") as css:
-    #        css.write(default_css)
+    
     writeposts()
     makeindex()
     makefullidx()
