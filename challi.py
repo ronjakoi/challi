@@ -144,7 +144,7 @@ def makeindex():
                 idxf.write("<p><a href=\"{}\">{}</a></p>\n"
                            .format(outfile,
                                    blog_conf.get("template", "read_more", fallback="Read more...")))
-            idxf.write("<p>{} {}</p>\n".
+            idxf.write("<p class=\"tagsline\">{} {}</p>\n".
                        format(blog_conf["template"]["tags_line_header"],
                               gettagsline(row["post_id"])))
     idxf.write(footer)
@@ -167,9 +167,9 @@ def writeposts():
             # Write each post file
             with open(outfile, 'w', encoding="utf-8") as f:
                 f.write(header)
-                f.write("<h1>" + row["title"] + "</h1>\n" + "<p>" + pdstring + "</p>\n")
+                f.write("<h3>" + row["title"] + "</h3>\n" + "<p>" + pdstring + "</p>\n")
                 f.write(markdown(row["content"]))
-                f.write("<p>{} {}</p>\n".
+                f.write("<p class=\"tagsline\">{} {}</p>\n".
                         format(blog_conf.get("template", "tags_line_header", fallback="Tags:"),
                                gettagsline(row["post_id"], "../../")))
                 f.write(footer)
@@ -260,7 +260,7 @@ def maketagpages():
                 tagfiles[tagpath].write("<p><a href=\"{}\">Read more...</a></p>\n"
                                         .format(postpath))
 
-            tagfiles[tagpath].write("<p>{} {}</p>\n".
+            tagfiles[tagpath].write("<p class=\"tagsline\">{} {}</p>\n".
                                     format(blog_conf["template"]["tags_line_header"],
                                            gettagsline(row["post_id"], "../")))
     for f in tagfiles.values():
@@ -338,7 +338,8 @@ def cli(config):
             blog_conf.get("template", "tags_title", fallback="All tags")
 
         author_conf = {"url": blog_conf.get("author", "url", fallback="http://www.example.com/"),
-                       "email": blog_conf.get("author", "email", fallback="nobody@example.com"),
+                       "email": blog_conf.get("author", "email", fallback="nobody@example.com").\
+                                replace("@", "&#64;"),
                        "name": blog_conf.get("author", "name", fallback="nobody")}
         blog_conf["author"] = author_conf
 
