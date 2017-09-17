@@ -80,8 +80,8 @@ def makeheader() -> str:
 
 def makefooter() -> str:
     f = """<div id="all_posts">
-    <a href="all_posts.html">{all_posts}</a> &mdash;
-    <a href="all_tags.html">{all_tags}</a>
+    <a href="/all_posts.html">{all_posts}</a> &mdash;
+    <a href="/all_tags.html">{all_tags}</a>
     </div>
     <div id="footer">&copy; <a href="{author_url}">{author_name}</a> &mdash;
     <a href="mailto:{author_email}">{author_email}</a><br/>
@@ -621,7 +621,7 @@ def post(ctx, hidden, get_from):
     post_template = \
         ("This line is your title\n\n"
          "The body of your post goes here.\n\n"
-         "{}: comma-separated, list, of, tags").format(blog_conf["template"]["tags_line_header"])
+         "{} comma-separated, list, of, tags").format(blog_conf["template"]["tags_line_header"])
 
     query = """INSERT INTO posts
             (title, content, publish_date, filename, hidden)
@@ -651,6 +651,7 @@ def post(ctx, hidden, get_from):
     post_id = cur.lastrowid
 
     db_tagpost(tags, post_id)
+    conn.commit()
     ctx.invoke(rebuild)
 
 
