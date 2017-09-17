@@ -14,7 +14,7 @@ import click
 db_file = "challi.db"
 """Sqlite3 database file."""
 
-break_re = r'[*-_]( *[*-_]){2,}'
+break_re = r'[*\-_]( *[*\-_]){2,}'
 """Regular expression used to determine summary breaks in Markdown."""
 
 config_file = "config.ini"
@@ -704,7 +704,8 @@ def list_posts(order_by, collation):
 
 @click.command()
 @click.argument('id_', type=click.INT, metavar='ID')
-def edit(id_):
+@click.pass_context
+def edit(ctx, id_):
     """Edit a post with given ID."""
 
     tagquery = """SELECT text AS tag FROM tags, tags_ref WHERE
@@ -733,25 +734,27 @@ def edit(id_):
         cur.execute(updatequery, (title, body, id_))
         conn.commit()
         db_tagpost(tags, id_)
-        rebuild()
+        ctx.invoke(rebuild)
     else:
         raise click.UsageError("No edits made")
 
 
 @click.command()
 @click.argument('id_', type=click.INT, metavar='ID')
-def hide(id_):
+@click.pass_context
+def hide(ctx, id_):
     """Flag a post with given ID as hidden."""
     set_post_hidden(id_, True)
-    rebuild()
+    ctx.invoke(rebuild)
 
 
 @click.command()
 @click.argument('id_', type=click.INT, metavar='ID')
-def unhide(id_):
+@click.pass_context
+def unhide(ctx, id_):
     """Flag a post with given ID as not hidden."""
     set_post_hidden(id_, False)
-    rebuild()
+    ctx.invoke(rebuild)
 
 
 @click.command()
@@ -776,7 +779,8 @@ def upload():
 
 @click.command()
 @click.argument('id_', type=click.INT, metavar='ID')
-def rm(id_):
+@click.pass_context
+def rm(ctx, id_):
     """Remove a post with given ID. The post is deleted from both
     the directory tree and the database.
 
@@ -802,7 +806,7 @@ def rm(id_):
         cur.execute("DELETE FROM posts WHERE post_id = ?", (id_,))
         conn.commit()
         click.echo("Deleted post with id {}".format(id_))
-        rebuild()
+        ctx.invoke(rebuild)
 
 
 @click.command()
