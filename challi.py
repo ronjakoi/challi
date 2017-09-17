@@ -729,7 +729,7 @@ def edit(id_):
         db_tagpost(tags, id_)
         rebuild()
     else:
-        raise click.UsageError("No edits made to template")
+        raise click.UsageError("No edits made")
 
 
 @click.command()
