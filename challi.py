@@ -14,7 +14,7 @@ import click
 db_file = "challi.db"
 """Sqlite3 database file."""
 
-break_re = r'[*\-_]( *[*\-_]){2,}'
+break_re = r'^[*\-_]( *[*\-_]){2,}$'
 """Regular expression used to determine summary breaks in Markdown."""
 
 config_file = "config.ini"
