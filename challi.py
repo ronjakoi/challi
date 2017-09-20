@@ -68,6 +68,19 @@ def geturi(filename: str, pd: str) -> str:
     return pd[0:4] + "/" + pd[5:7] + "/" + filename
 
 
+def getdesc(content):
+    """Get a short description from the entire post content."""
+
+    maxlen = 250
+
+    content = content.partition('\n\n')[0].strip()
+    last_sentence_end = content.rfind('.', 0, maxlen)
+    if last_sentence_end == -1:
+        return content[0:maxlen]
+    else:
+        return content[0:last_sentence_end+1]
+
+
 def pubdate2str(pubdate, formatstr: str) -> str:
     pd = datetime.strptime(pubdate, "%Y-%m-%d %H:%M:%S")
     return pd.strftime(formatstr)
@@ -119,12 +132,19 @@ def split_input(post_text: str) -> Tuple:
 def makeindex():
     """Make the main index.html"""
 
+    global header
     makedirs(blog_conf["files"]["blog_dir"], exist_ok=True)
     idxf = open(path.join(blog_conf["files"]["blog_dir"],
                           blog_conf.get("files", "index_file", fallback="index.html")),
                 'w+', encoding="utf-8")
 
-    idxf.write(header)
+    # Customize header
+    temp_header = header.format(title=blog_conf["blog"]["title"],
+                               url=blog_conf["blog"]["url"],
+                               description=blog_conf["blog"]["description"],
+                               author=blog_conf["author"]["name"],
+                               locale=locale.getlocale()[0])
+    idxf.write(temp_header)
     cur.execute("SELECT post_id, title, publish_date, filename, content "
                 "FROM posts ORDER BY publish_date DESC LIMIT ?",
                 (index_len,))
@@ -154,6 +174,7 @@ def makeindex():
 def writeposts():
     """Write posts to files. Also make any necessary subdirectories."""
 
+    global header
     cur.execute("SELECT post_id, title, publish_date, filename, content "
                 "FROM posts")
     with click.progressbar(cur, label="Writing posts", width=0) as posts:
@@ -166,7 +187,16 @@ def writeposts():
             outfile = path.join(blog_conf["files"]["blog_dir"], datedir, row["filename"])
             # Write each post file
             with open(outfile, 'w', encoding="utf-8") as f:
-                f.write(header)
+                tag_title = "{} &ndash; {}".format(
+                    blog_conf["blog"]["title"],
+                    row["title"])
+                desc = getdesc(row["content"])
+                temp_header = header.format(title=tag_title,
+                               url=blog_conf["blog"]["url"],
+                               description=desc,
+                               author=blog_conf["author"]["name"],
+                               locale=locale.getlocale()[0])
+                f.write(temp_header)
                 f.write("<h3>" + row["title"] + "</h3>\n" + "<p>" + pdstring + "</p>\n")
                 f.write(markdown(row["content"]))
                 f.write("<p class=\"tagsline\">{} {}</p>\n".
@@ -178,11 +208,23 @@ def writeposts():
 def makefullidx():
     """Make an index page listing all posts."""
 
+    global header
     makedirs(blog_conf["files"]["blog_dir"], exist_ok=True)
     archive_index = blog_conf.get("files", "archive_index", fallback="all_posts.html")
     f = open(path.join(blog_conf["files"]["blog_dir"], archive_index),
              'w', encoding="utf-8")
-    f.write(header)
+
+    # Customize header
+    archive_title = blog_conf["blog"]["title"] + \
+                    " &ndash; " + \
+                    blog_conf["template"]["archive_title"]
+    temp_header = header.format(title=archive_title,
+                               url=blog_conf["blog"]["url"],
+                               description=archive_title,
+                               author=blog_conf["author"]["name"],
+                               locale=locale.getlocale()[0])
+    f.write(temp_header)
+    f.write("<h2>{}</h2>".format(blog_conf["template"]["archive_title"]))
     prevmonth = None
     cur.execute("SELECT title, publish_date, filename "
                 "FROM posts ORDER BY publish_date DESC")
@@ -194,7 +236,7 @@ def makefullidx():
             if thismonth != prevmonth:
                 if prevmonth is not None:
                     f.write("</ul>\n")
-                f.write("<h2>" + pubdate2str(row["publish_date"], "%B %Y") + "</h2>\n<ul>")
+                f.write("<h3>" + pubdate2str(row["publish_date"], "%B %Y") + "</h3>\n<ul>")
             f.write("<li><a href=\"%s\">%s</a> &mdash; %s</li>" %
                     (geturi(row["filename"], row["publish_date"]),
                      row["title"],
@@ -209,10 +251,21 @@ def makefullidx():
 def maketagindex():
     """Make alphabetical list of all tags."""
 
+    global header
     makedirs(blog_conf["files"]["blog_dir"], exist_ok=True)
     tag_index = blog_conf.get("files", "tags_index", fallback="all_tags.html")
     f = open(path.join(blog_conf["files"]["blog_dir"], tag_index), 'w', encoding="utf-8")
-    f.write(header)
+    # Customize header
+    tags_title = blog_conf["blog"]["title"] + \
+                    " &ndash; " + \
+                    blog_conf["template"]["tags_title"]
+    temp_header = header.format(title=tags_title,
+                               url=blog_conf["blog"]["url"],
+                               description=tags_title,
+                               author=blog_conf["author"]["name"],
+                               locale=locale.getlocale()[0])
+    f.write(temp_header)
+    f.write("<h2>{}</h2>".format(blog_conf["template"]["tags_title"]))
     f.write("<ul>")
     cur.execute("SELECT text, COUNT(tags_ref.tag_id) as count "
                 "FROM tags, tags_ref "
@@ -230,6 +283,7 @@ def maketagindex():
 def maketagpages():
     """Make a page for each tag."""
 
+    global header
     tagdir = path.join(blog_conf["files"]["blog_dir"], "tag")
     makedirs(tagdir, exist_ok=True)
     tagfiles = {}
@@ -246,7 +300,17 @@ def maketagpages():
             tagpath = path.join(tagdir, row["tag"] + ".html")
             if tagpath not in tagfiles.keys():
                 tagfiles[tagpath] = open(tagpath, 'w', encoding="utf-8")
-                tagfiles[tagpath].write(header)
+                # Customize header
+                tag_title = "{} &ndash; {} '{}'".format(
+                    blog_conf["blog"]["title"],
+                    blog_conf["template"]["tag_title"],
+                    row["tag"])
+                temp_header = header.format(title=tag_title,
+                               url=blog_conf["blog"]["url"],
+                               description=tag_title,
+                               author=blog_conf["author"]["name"],
+                               locale=locale.getlocale()[0])
+                tagfiles[tagpath].write(temp_header)
             postpath = "../" + geturi(row["fn"], row["pd"])
             pdstring = pubdate2str(row["pd"], blog_conf["template"]["date_format"])
             has_summary, summary = getsummary(row["content"])
@@ -358,10 +422,6 @@ def cli(config):
         else:
             header = makeheader()
 
-        header = header.format(title=blog_conf["blog"]["title"],
-                               url=blog_conf["blog"]["url"],
-                               description=blog_conf["blog"]["description"],
-                               author=blog_conf["author"]["name"])
         if footer_file:
             with open(footer_file, "r", encoding="utf-8") as ff:
                 footer = ff.read()
@@ -608,7 +668,7 @@ h4{margin-left:24px;margin-right:24px;}
     if not path.exists(init_config):
         with open(init_config, "w", encoding="utf-8") as c:
             c.write(default_config)
-    
+
     css_file = path.join(directory, "blog.css")
     if not path.isfile(css_file):
         click.echo("Generating default CSS file in `%s' ..." % css_file)
@@ -813,7 +873,7 @@ def rm(ctx, id_):
 @click.command()
 def rebuild():
     """Rebuild all posts, tags and indexes."""
-    
+
     writeposts()
     makeindex()
     makefullidx()
