@@ -71,9 +71,26 @@ def geturi(filename: str, pd: str) -> str:
 def getdesc(content):
     """Get a short description from the entire post content."""
 
+    from html.parser import HTMLParser
+
+    class HTMLStripper(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.reset()
+            self.fed = []
+        def handle_data(self, d):
+            self.fed.append(d)
+        def get_data(self):
+            return ''.join(self.fed)
+
+    def strip_tags(html):
+        s = HTMLStripper()
+        s.feed(html)
+        return s.get_data()
+
     maxlen = 250
 
-    content = content.partition('\n\n')[0].strip()
+    content = strip_tags(markdown(content.partition('\n\n')[0].strip()))
     last_sentence_end = content.rfind('.', 0, maxlen)
     if last_sentence_end == -1:
         return content[0:maxlen]
